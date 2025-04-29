@@ -1,0 +1,93 @@
+{
+    "1": {
+        "title": "Write Report",
+        "desc": "Prepare the quarterly financial report.",
+        "dueDate": "11/12/2024",
+        "progress": 80,
+        "state": "In Progress"
+    },
+    "2": {
+        "title": "Team Meeting",
+        "desc": "Discuss progress on the ongoing project.",
+        "dueDate": "11/13/2024",
+        "progress": 20,
+        "state": "In Progress"
+    },
+    "4": {
+        "title": "Prepare Presentation",
+        "desc": "Prepare slides for the upcoming conference.",
+        "dueDate": "11/15/2024",
+        "progress": 40,
+        "state": "In Progress"
+    },
+    "5": {
+        "title": "Code Review",
+        "desc": "Review code changes submitted by the team.",
+        "dueDate": "11/18/2024",
+        "progress": 50,
+        "state": "In Progress"
+    },
+    "6": {
+        "title": "Documentation",
+        "desc": "Update the API documentation.",
+        "dueDate": "11/19/2024",
+        "progress": 60,
+        "state": "In Progress"
+    },
+    "7": {
+        "title": "Research Market Trends",
+        "desc": "Analyze current trends for the strategy meeting.",
+        "dueDate": "11/20/2024",
+        "progress": 70,
+        "state": "In Progress"
+    },
+    "8": {
+        "title": "Update Website",
+        "desc": "Make necessary changes to the company website.",
+        "dueDate": "11/21/2024",
+        "progress": 80,
+        "state": "In Progress"
+    },
+    "9": {
+        "title": "Prepare Budget",
+        "desc": "Create the budget for the next fiscal year.",
+        "dueDate": "11/20/2024",
+        "progress": 90,
+        "state": "In Progress"
+    },
+    "10": {
+        "title": "Schedule Interviews",
+        "desc": "Set up interviews for new candidates.",
+        "dueDate": "11/11/2024",
+        "progress": 100.0,
+        "state": "Completed"
+    },
+    "11": {
+        "title": "Finalize Proposal",
+        "desc": "Complete and submit the proposal for the client.",
+        "dueDate": "11/12/2024",
+        "progress": 100.0,
+        "state": "Completed"
+    },
+    "12": {
+        "title": "Training Session",
+        "desc": "Conduct training for the new hires.",
+        "dueDate": "11/13/2024",
+        "progress": 100,
+        "state": "Completed"
+    },
+    "13": {
+        "title": "Security Audit",
+        "desc": "Perform an internal security audit.",
+        "dueDate": "11/14/2024",
+        "progress": 30,
+        "state": "In Progress"
+    },
+    "14": {
+        "title": "Annual Report",
+        "desc": "Draft the company's annual performance report.",
+        "dueDate": "11/15/2024",
+        "progress": 100.0,
+        "state": "Completed"
+    }
+}
