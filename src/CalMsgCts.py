@@ -28,7 +28,7 @@ def sendEmail(
 import readline
 import os
 
-HISTORY_FILE = ".calMsgEmail_history"
+HISTORY_FILE = ".calMsgCts_history"
 
 def setup_readline():
     """Set up GNU Readline capabilities."""
