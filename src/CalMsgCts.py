@@ -1,11 +1,11 @@
 import json
-from typing import Dict, List, Optional, Tuple
-from datetime import datetime, timedelta
-import re
+from typing import List, Optional, Tuple
+import readline
+import os
+import atexit
 
 # Import refactored classes
-from state_manager import StateManager
-from calendar import Calendar
+from calendars import Calendar
 from tasks import Tasks
 from contacts import Contacts
 
@@ -25,9 +25,6 @@ def sendEmail(
         "subject": subj
     }
 
-import readline
-import os
-
 HISTORY_FILE = ".calMsgCts_history"
 
 def setup_readline():
@@ -37,7 +34,6 @@ def setup_readline():
         readline.read_history_file(HISTORY_FILE)
 
     # Save command history on exit
-    import atexit
     atexit.register(readline.write_history_file, HISTORY_FILE)
 
     # Enable auto-completion (optional)
@@ -82,7 +78,7 @@ def main():
     print("Example commands:")
     print("  cal.add_event(title='Meeting', date='12/19/2024 09:00', duration=60, users=['Alice', 'Bob'])")
     print("  tsk.list_tasks()")
-    print("  cal.find_events_by_date('12/19/2024')")
+    print("  cal.get_events_by_date('12/19/2024')")
     print("  tsk.get_tasks_due_on('12/19/2024')")
     print("  ctc.add_contact(first_name='John', last_name='Smith', title='Chief Cook and Bottle Washer', work_phone='555.1212', email='jsmith@example.com')")
 
