@@ -15,7 +15,7 @@ class Tasks(StateManagerBase[TaskData]):
     
     VALID_STATES = ["Not Started", "In Progress", "Completed", "On Hold", "Cancelled"]
     
-    def validate_item(self, item: Dict[str, Any]) -> bool:
+    def _validate_item(self, item: Dict[str, Any]) -> bool:
         """
         Validate task data before adding/updating.
         
@@ -77,7 +77,7 @@ class Tasks(StateManagerBase[TaskData]):
             ValueError: If task_id already exists or validation fails
         """
         if not task_id:
-            task_id = self.get_next_id()
+            task_id = self._get_next_id()
         
         task_data = {
             "title": title,
@@ -88,7 +88,7 @@ class Tasks(StateManagerBase[TaskData]):
         }
         
         # Validate before adding
-        self.validate_item(task_data)
+        self._validate_item(task_data)
         
         if self.add_item(task_id, task_data):
             return f"Task {task_id} added"
@@ -143,7 +143,7 @@ class Tasks(StateManagerBase[TaskData]):
                 
         # Create merged data for validation
         merged_data = {**current_data, **updates}
-        self.validate_item(merged_data)
+        self._validate_item(merged_data)
 
         if self.update_item(task_id, updates):
             return f"Task {task_id} updated"

@@ -17,7 +17,7 @@ class ContactData(Dict[str, Any]):
 class Contacts(StateManagerBase[ContactData]):
     """Manages lists of contacts and their information such as email, phone numbers, etc."""
     
-    def validate_item(self, item: Dict[str, Any]) -> bool:
+    def _validate_item(self, item: Dict[str, Any]) -> bool:
         """
         Validate contact data before adding/updating.
         
@@ -89,7 +89,7 @@ class Contacts(StateManagerBase[ContactData]):
             ValueError: If contact_id already exists or validation fails
         """
         if not contact_id:
-            contact_id = self.get_next_id()
+            contact_id = self._get_next_id()
         
         contact_data = {
             "first_name": first_name,
@@ -103,7 +103,7 @@ class Contacts(StateManagerBase[ContactData]):
         }
         
         # Validate data before adding
-        self.validate_item(contact_data)
+        self._validate_item(contact_data)
         
         if self.add_item(contact_id, contact_data):
             return f"Contact {contact_id} added"
@@ -162,7 +162,7 @@ class Contacts(StateManagerBase[ContactData]):
         
         # Create merged data for validation
         merged_data = {**current_data, **updates}
-        self.validate_item(merged_data)
+        self._validate_item(merged_data)
         
         if self.update_item(contact_id, updates):
             return f"Contact {contact_id} updated"

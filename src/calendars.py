@@ -14,7 +14,7 @@ class EventData(Dict[str, Any]):
 class Calendar(StateManagerBase[EventData]):
     """Manages calendar events and scheduling."""
     
-    def validate_item(self, item: Dict[str, Any]) -> bool:
+    def _validate_item(self, item: Dict[str, Any]) -> bool:
         """
         Validate event data before adding/updating.
         
@@ -74,7 +74,7 @@ class Calendar(StateManagerBase[EventData]):
             ValueError: If event_id exists or validation fails
         """
         if not event_id:
-            event_id = self.get_next_id()
+            event_id = self._get_next_id()
             
         event_data = {
             "title": title,
@@ -84,7 +84,7 @@ class Calendar(StateManagerBase[EventData]):
         }
         
         # Validate before adding
-        self.validate_item(event_data)
+        self._validate_item(event_data)
         
         if self.add_item(event_id, event_data):
             return f"Event {event_id} Added"
@@ -130,7 +130,7 @@ class Calendar(StateManagerBase[EventData]):
         
         # Create merged data for validation
         merged_data = {**current_data, **updates}
-        self.validate_item(merged_data)
+        self._validate_item(merged_data)
         
         if self.update_item(event_id, updates):
             return f"Event {event_id} updated"

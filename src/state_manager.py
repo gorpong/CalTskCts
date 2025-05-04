@@ -35,12 +35,12 @@ class StateManagerBase(ABC, Generic[T]):
         except FileNotFoundError:
             return {}
     
-    def save_state(self) -> None:
+    def _save_state(self) -> None:
         """Save current state to the state file."""
         with open(self.state_file, "w") as f:
             json.dump(self._state, f, indent=4)
     
-    def get_next_id(self) -> int:
+    def _get_next_id(self) -> int:
         """
         Get the next available ID for an item in the state.
         
@@ -79,7 +79,7 @@ class StateManagerBase(ABC, Generic[T]):
             return False
         
         self._state[item_id_str] = item_data
-        self.save_state()
+        self._save_state()
         return True
     
     def update_item(self, item_id: int, updates: Dict[str, Any]) -> bool:
@@ -101,7 +101,7 @@ class StateManagerBase(ABC, Generic[T]):
             if value is not None:  # Only update non-None values
                 self._state[item_id_str][key] = value
         
-        self.save_state()
+        self._save_state()
         return True
     
     def delete_item(self, item_id: int) -> bool:
@@ -119,7 +119,7 @@ class StateManagerBase(ABC, Generic[T]):
             return False
         
         del self._state[item_id_str]
-        self.save_state()
+        self._save_state()
         return True
     
     def list_items(self) -> Dict[int, T]:
@@ -162,7 +162,7 @@ class StateManagerBase(ABC, Generic[T]):
         return results
 
     @abstractmethod
-    def validate_item(self, item: Dict[str, Any]) -> bool:
+    def _validate_item(self, item: Dict[str, Any]) -> bool:
         """
         Validate item data before adding/updating.
         To be implemented by subclasses for specific validation rules.
