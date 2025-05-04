@@ -3,27 +3,9 @@ from typing import List, Optional, Tuple
 import readline
 import os
 import atexit
-
-# Import refactored classes
 from calendars import Calendar
 from tasks import Tasks
 from contacts import Contacts
-
-def get_todays_date() -> str:
-    return "11/11/2024"
-
-def sendEmail(
-    to: str, 
-    subj: str, 
-    cc: Optional[str] = None, 
-    body: Optional[List[str]] = None
-) -> str:
-    """Fake-send an email with the provided parameters"""
-    return {
-        "status": "Message Sent",
-        "to": to,
-        "subject": subj
-    }
 
 HISTORY_FILE = ".calMsgCts_history"
 
