@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional, Any
 from state_manager import StateManagerBase
-
+import re
 
 class ContactData(Dict[str, Any]):
     """Type for contact data with expected fields."""
@@ -45,15 +45,13 @@ class Contacts(StateManagerBase[ContactData]):
         for field in phone_fields:
             raw_value = item.get(field)
             if raw_value:
-                cleaned_value = (
-                    raw_value
-                    .replace("-", "")
-                    .replace(".", "")
-                    .replace("(", "")
-                    .replace(")", "")
-                    .replace(" ", "")
-                )
-                if not cleaned_value.isdigit():
+                cleaned_value = re.sub(r"[^\d+]", "", raw_value)
+                if cleaned_value.startswith('+'):   # Keep in front, strip elsewhere
+                    cleaned_value = '+' + cleaned_value[1:].replace('+', '')
+                else:   # Strip anywhere else
+                    cleaned_value = cleaned_value.replace('+', '')
+                
+                if not re.fullmatch(r"\+?\d+", cleaned_value):
                     raise ValueError(f"Invalid phone number format in {field}")
         
         return True
