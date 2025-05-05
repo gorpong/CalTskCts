@@ -1,8 +1,6 @@
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 from datetime import datetime, timedelta
 from state_manager import StateManagerBase
-import re
-import os
 
 
 class EventData(Dict[str, Any]):
@@ -121,14 +119,12 @@ class Calendar(StateManagerBase[EventData]):
         if not current_data:
             raise ValueError(f"Event with ID {event_id} does not exist.")
             
-        updates = {
-            k: v for k, v in {
-                "title": title,
-                "date": date,
-                "duration": duration,
-                "users": users
-            }.items() if v is not None
-        }
+        updates = {k: v for k, v in {
+            "title": title,
+            "date": date,
+            "duration": duration,
+            "users": users
+        }.items() if v is not None}
         
         # Create merged data for validation
         merged_data = {**current_data, **updates}
@@ -157,7 +153,7 @@ class Calendar(StateManagerBase[EventData]):
         else:
             raise ValueError(f"Event with ID {event_id} does not exist.")
     
-    def get_events_by_date(self, date: str) -> List[Dict[str, Any]]:
+    def get_events_by_date(self, date: str) -> List[EventData]:
         """
         Find all events on a specific date.
         
@@ -173,7 +169,7 @@ class Calendar(StateManagerBase[EventData]):
                 results.append({"event_id": int(event_id), **event})
         return results
     
-    def get_events_between(self, start_datetime: str, end_datetime: str) -> List[Dict[str, Any]]:
+    def get_events_between(self, start_datetime: str, end_datetime: str) -> List[EventData]:
         """
         Get all events between two dates (inclusive).
         
@@ -207,7 +203,7 @@ class Calendar(StateManagerBase[EventData]):
         
         Args:
             start_datetime: Starting point to search from (MM/DD/YYYY HH:MM)
-            duration_minutes: Required duration
+            duration_minutes: Required duration in minutes
             
         Returns:
             Available time slot (MM/DD/YYYY HH:MM)
@@ -239,11 +235,11 @@ class Calendar(StateManagerBase[EventData]):
         List all calendar events.
         
         Returns:
-            List of all tasks
+            Dictionary of all events with integer keys
         """
         return self.list_items()
 
-    def get_event(self, event_id: int) -> Dict[int, Any]:
+    def get_event(self, event_id: int) -> Optional[EventData]:
         """
         Get a specific event based on the event's ID.
         
@@ -251,6 +247,6 @@ class Calendar(StateManagerBase[EventData]):
             event_id: The ID for the calendar event
         
         Returns:
-            Specific calendar event that matches the ID
+            Specific calendar event that matches the ID or None if not found
         """
         return self.get_item(event_id)

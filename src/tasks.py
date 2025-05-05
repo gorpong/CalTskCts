@@ -1,12 +1,12 @@
 from typing import Dict, List, Optional, Any
-from datetime import datetime, timedelta
+from datetime import datetime
 from state_manager import StateManagerBase
 
 class TaskData(Dict[str, Any]):
     """Type for task data with expected fields."""
     title: str
     desc: str
-    dueDate: Optional[str]
+    dueDate: Optional[str]  # "MM/DD/YYYY" format
     progress: float
     state: str
 
@@ -125,6 +125,7 @@ class Tasks(StateManagerBase[TaskData]):
         if not current_data:
             raise ValueError(f"Task with ID {task_id} does not exist.")
         
+        # Build updates dictionary with consistency between progress and state
         updates = {}
         if title is not None:
             updates["title"] = title
@@ -134,10 +135,12 @@ class Tasks(StateManagerBase[TaskData]):
             updates["dueDate"] = due_date
         if progress is not None:
             updates["progress"] = progress
+            # Auto-update state if progress is 100%
             if progress == 100.0:
                 updates["state"] = "Completed"
         if state is not None:
             updates["state"] = state
+            # Auto-update progress if state is "Completed"
             if state == "Completed":
                 updates["progress"] = 100.0
                 
@@ -168,7 +171,7 @@ class Tasks(StateManagerBase[TaskData]):
         else:
             raise ValueError(f"Task with ID {task_id} does not exist.")
 
-    def get_tasks_due_today(self, today: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_tasks_due_today(self, today: Optional[str] = None) -> List[TaskData]:
         """
         Get all tasks due today or before.
         
@@ -189,12 +192,12 @@ class Tasks(StateManagerBase[TaskData]):
                 continue
                 
             task_date = datetime.strptime(task["dueDate"], "%m/%d/%Y")
-            if task_date <= today_date:
+            if task_date.date() <= today_date.date():
                 results.append({"task_id": int(task_id), **task})
                 
         return results
 
-    def get_tasks_due_on(self, date: str) -> List[Dict[str, Any]]:
+    def get_tasks_due_on(self, date: str) -> List[TaskData]:
         """
         Get all tasks due on a specific date.
         
@@ -217,7 +220,7 @@ class Tasks(StateManagerBase[TaskData]):
                 
         return results
 
-    def get_tasks_due_on_or_before(self, date: str) -> List[Dict[str, Any]]:
+    def get_tasks_due_on_or_before(self, date: str) -> List[TaskData]:
         """
         Get all tasks due on or before a date.
         
@@ -235,16 +238,16 @@ class Tasks(StateManagerBase[TaskData]):
                 continue
                 
             task_date = datetime.strptime(task["dueDate"], "%m/%d/%Y")
-            if task_date <= target_date:
+            if task_date.date() <= target_date.date():
                 results.append({"task_id": int(task_id), **task})
                 
         return results
 
     def get_tasks_with_progress(
         self,
-        min_progress: Optional[float] = None,
-        max_progress: Optional[float] = None
-    ) -> List[Dict[str, Any]]:
+        min_progress: float = 0.0,
+        max_progress: float = 100.0
+    ) -> List[TaskData]:
         """
         Get tasks filtered by progress range.
         
@@ -258,13 +261,12 @@ class Tasks(StateManagerBase[TaskData]):
         results = []
         for task_id, task in self.items.items():
             progress = task["progress"]
-            if (min_progress is None or progress >= min_progress) and \
-               (max_progress is None or progress <= max_progress):
+            if min_progress <= progress <= max_progress:
                 results.append({"task_id": int(task_id), **task})
                 
         return results
 
-    def get_tasks_by_state(self, state: str = "Not Started") -> List[Dict[str, Any]]:
+    def get_tasks_by_state(self, state: str = "Not Started") -> List[TaskData]:
         """
         Get tasks matching a state pattern.
         
@@ -281,18 +283,18 @@ class Tasks(StateManagerBase[TaskData]):
         List all tasks.
         
         Returns:
-            List of all tasks
+            Dictionary of all tasks with integer keys
         """
         return self.list_items()
     
-    def get_task(self, task_id: int) -> Dict[int, Any]:
+    def get_task(self, task_id: int) -> Optional[TaskData]:
         """
         Get a specific task based on the task's ID.
         
         Args:
-            task_id: The ID for the task's event
+            task_id: The ID for the task
         
         Returns:
-            Specific task that matches the ID
+            Specific task that matches the ID or None if not found
         """
         return self.get_item(task_id)

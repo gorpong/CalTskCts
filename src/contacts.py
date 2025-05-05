@@ -30,9 +30,10 @@ class Contacts(StateManagerBase[ContactData]):
         Raises:
             ValueError: If validation fails
         """
+        # Check required fields
         required_fields = ["first_name", "last_name"]
         for field in required_fields:
-            if field not in item:
+            if field not in item or not item[field]:
                 raise ValueError(f"Missing required field: {field}")
         
         # Validate email format if provided
@@ -45,12 +46,10 @@ class Contacts(StateManagerBase[ContactData]):
         for field in phone_fields:
             raw_value = item.get(field)
             if raw_value:
+                # Remove non-digit characters except '+'
                 cleaned_value = re.sub(r"[^\d+]", "", raw_value)
-                if cleaned_value.startswith('+'):   # Keep in front, strip elsewhere
-                    cleaned_value = '+' + cleaned_value[1:].replace('+', '')
-                else:   # Strip anywhere else
-                    cleaned_value = cleaned_value.replace('+', '')
                 
+                # Ensure valid format
                 if not re.fullmatch(r"\+?\d+", cleaned_value):
                     raise ValueError(f"Invalid phone number format in {field}")
         
@@ -115,8 +114,8 @@ class Contacts(StateManagerBase[ContactData]):
         contact_id: int,
         first_name: Optional[str] = None,
         last_name: Optional[str] = None,
-        company: Optional[str] = None,
         title: Optional[str] = None,
+        company: Optional[str] = None,
         work_phone: Optional[str] = None,
         mobile_phone: Optional[str] = None,
         home_phone: Optional[str] = None,
@@ -129,8 +128,8 @@ class Contacts(StateManagerBase[ContactData]):
             contact_id: The ID of the contact to update
             first_name: New first name
             last_name: New last name
-            company: New company name
             title: New job title
+            company: New company name
             work_phone: New work phone
             mobile_phone: New mobile phone
             home_phone: New home phone
@@ -146,19 +145,19 @@ class Contacts(StateManagerBase[ContactData]):
         if not current_data:
             raise ValueError(f"Contact with ID {contact_id} does not exist.")
             
+        # Build updates dictionary
         updates = {
-            "first_name": first_name,
-            "last_name": last_name,
-            "company": company,
-            "title": title,
-            "work_phone": work_phone,
-            "mobile_phone": mobile_phone,
-            "home_phone": home_phone,
-            "email": email,
+            k: v for k, v in {
+                "first_name": first_name,
+                "last_name": last_name,
+                "title": title,
+                "company": company,
+                "work_phone": work_phone,
+                "mobile_phone": mobile_phone,
+                "home_phone": home_phone,
+                "email": email,
+            }.items() if v is not None
         }
-        
-        # Remove None values
-        updates = {k: v for k, v in updates.items() if v is not None}
         
         # Create merged data for validation
         merged_data = {**current_data, **updates}
@@ -187,7 +186,7 @@ class Contacts(StateManagerBase[ContactData]):
         else:
             raise ValueError(f"Contact with ID {contact_id} does not exist.")
 
-    def search_contacts(self, query: str) -> List[Dict[str, Any]]:
+    def search_contacts(self, query: str) -> List[ContactData]:
         """
         Search contacts by name, email, or phone number.
         
@@ -197,26 +196,22 @@ class Contacts(StateManagerBase[ContactData]):
         Returns:
             List of matching contacts with their IDs included
         """
-        fields = [
-            "first_name",
-            "last_name",
-            "email",
-            "work_phone",
-            "mobile_phone",
-            "home_phone"
+        search_fields = [
+            "first_name", "last_name", "email", "company",
+            "work_phone", "mobile_phone", "home_phone"
         ]
-        return self.search_items(query, fields)
+        return self.search_items(query, search_fields)
 
     def list_contacts(self) -> Dict[int, Any]:
         """
-        List all calendar events.
+        List all contacts.
         
         Returns:
-            List of all tasks
+            Dictionary of all contacts with integer keys
         """
         return self.list_items()
 
-    def get_contact(self, contact_id: int) -> Dict[int, Any]:
+    def get_contact(self, contact_id: int) -> Optional[ContactData]:
         """
         Get a specific contact based on the contact ID.
         
@@ -224,6 +219,6 @@ class Contacts(StateManagerBase[ContactData]):
             contact_id: The integer ID for the contact
         
         Returns:
-            Specific contact that matches the ID
+            Specific contact that matches the ID or None if not found
         """
         return self.get_item(contact_id)

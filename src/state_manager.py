@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
 import json
-from datetime import datetime
 from typing import Dict, Any, List, Optional, TypeVar, Generic
 import re
 
+# Define a generic type for item data
 T = TypeVar('T', bound=Dict[str, Any])
 
 class StateManagerBase(ABC, Generic[T]):
@@ -98,8 +98,7 @@ class StateManagerBase(ABC, Generic[T]):
             return False
         
         for key, value in updates.items():
-            if value is not None:  # Only update non-None values
-                self._state[item_id_str][key] = value
+            self._state[item_id_str][key] = value
         
         self._save_state()
         return True
@@ -133,7 +132,12 @@ class StateManagerBase(ABC, Generic[T]):
     
     @property
     def items(self) -> Dict[str, T]:
-        """Access state data directly."""
+        """
+        Access state data directly with string keys.
+        
+        Returns:
+            Dictionary of all items with string keys
+        """
         return self._state
 
     def search_items(self, query: str, fields: List[str]) -> List[Dict[str, Any]]:
@@ -171,7 +175,7 @@ class StateManagerBase(ABC, Generic[T]):
             item: The item data to validate
             
         Returns:
-            True if valid, False otherwise
+            True if valid
         
         Raises:
             ValueError: If validation fails with specific reason
