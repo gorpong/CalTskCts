@@ -21,25 +21,35 @@ def setup_readline():
     # Enable auto-completion (optional)
     def completer(text, state):
         commands = [
-            "cal.add_event(",
-            "cal.find_next_available(start_datetime=",
-            "cal.delete_event(event_id=",
-            "cal.get_event(event_id=",
+            # Calendar methods
+            "cal.add_event(title='', date='', duration=-1, users=[], event_id=-1)",
+            "cal.find_next_available(start_datetime='', duration_minutes=-1)",
+            "cal.delete_event(event_id=-1)",
+            "cal.get_event(event_id=-1)",
             "cal.list_events()",
-            "cal.get_events_by_date(date=",
-            "cal.get_events_between(start_datetime=",
-            "tsk.add_task(title=",
-            "tsk.update_task(task_id=",
-            "tsk.delete_task(task_id=",
+            "cal.get_events_by_date(date='')",
+            "cal.get_events_between(start_datetime='', end_datetime='')",
+            "cal.update_event(event_id=-1, title='', date='', duration=-1, users=[])",
+            
+            # Task methods
+            "tsk.add_task(title='', description='', due_date='', progress=-1.0, state='', task_id=-1)",
+            "tsk.update_task(task_id=-1, title='', description='', due_date='', progress=-1.0, state='')",
+            "tsk.delete_task(task_id=-1)",
             "tsk.list_tasks()",
+            "tsk.get_task(task_id=-1)",
+            "tsk.get_tasks_due_today(today='')",
+            "tsk.get_tasks_due_on(date='')",
+            "tsk.get_tasks_due_on_or_before(date='')",
+            "tsk.get_tasks_with_progress(min_progress=-1.0, max_progress=-1.0)",
+            "tsk.get_tasks_by_state(state='')",
+            
+            # Contacts methods
             "ctc.list_contacts()",
-            "ctc.add_contact(",
-            "ctc.update_contact(contact_id=",
-            "ctc.delete_contact(contact_id=",
-            "ctc.get_contact(contact_id=",
-            "ctc.search_contacts(query=",
-            "sendEmail(to=",
-            "get_todays_date()",
+            "ctc.add_contact(first_name='', last_name='', title='', company='', work_phone='', mobile_phone='', home_phone='', email='', contact_id=-1)",
+            "ctc.update_contact(contact_id=-1, first_name='', last_name='', company='', title='', work_phone='', mobile_phone='', home_phone='', email='')",
+            "ctc.delete_contact(contact_id=-1)",
+            "ctc.get_contact(contact_id=-1)",
+            "ctc.search_contacts(query='')",
         ]
         matches = [cmd for cmd in commands if cmd.startswith(text)]
         if state < len(matches):
