@@ -122,7 +122,6 @@ def dispatch_command(command: str, context: Dict[str, Any]) -> Any:
     # Use exec with local context to run the command
     # This is safer than eval but still requires trusted input
     local_context = {**context}
-    result = [None]  # Use list to store result from exec
     
     exec_str = f"result[0] = {command}"
     exec(exec_str, {"__builtins__": {}}, local_context)

@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 from state_manager import StateManagerBase
 
