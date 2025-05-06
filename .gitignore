@@ -5,3 +5,4 @@ __pycache__/
 /_tasks.json
 /_contacts.json
 /.calMsgCts_history
+/logs/
