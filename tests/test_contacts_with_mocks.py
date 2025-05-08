@@ -1,8 +1,7 @@
 import unittest
-import pytest
 from unittest.mock import patch, mock_open
 
-from contacts import Contacts, ContactData
+from contacts import Contacts
 
 class TestContactsWithMocks(unittest.TestCase):
     """Test suite for the Contacts class using mocks to isolate from file system."""
@@ -51,8 +50,6 @@ class TestContactsWithMocks(unittest.TestCase):
                     contact_id=1
                 )
     
-    @unittest.expectedFailure
-    @pytest.mark.xfail(reason="Temporary workaround - Fix _validate_item", strict=False)
     def test_add_contact_validation_edge_cases(self):
         """Test edge cases for contact validation during add."""
         edge_cases = [
@@ -74,8 +71,6 @@ class TestContactsWithMocks(unittest.TestCase):
             
             # Invalid email formats
             ({"first_name": "Email", "last_name": "Test", "email": "not-an-email"}, ValueError),
-            # Invalid email formats that SHOULD FAIL but DO NOT according to the code
-            # Fix the Contacts._validate_item() method to check for these
             ({"first_name": "Email", "last_name": "Test", "email": "@missing-username.com"}, ValueError),
             ({"first_name": "Email", "last_name": "Test", "email": "missing-domain@"}, ValueError),
 
@@ -85,9 +80,7 @@ class TestContactsWithMocks(unittest.TestCase):
             ({"first_name": "Phone", "last_name": "Test", "work_phone": "+12345678901"}, None),
             
             # Invalid phone formats
-            ({"first_name": "Phone", "last_name": "Test", "work_phone": "12345"}, None),  # This should actually pass - just digits is valid
-            # Invalid phone formats that SHOULD FAIL but DO NOT according to the code
-            # Fix the Contacts._validate_item() method to check for these
+            ({"first_name": "Phone", "last_name": "Test", "work_phone": "12345"}, ValueError),
             ({"first_name": "Phone", "last_name": "Test", "work_phone": "abc-def-ghij"}, ValueError),
             ({"first_name": "Phone", "last_name": "Test", "work_phone": "123-abc-def0"}, ValueError),
         ]
@@ -145,8 +138,6 @@ class TestContactsWithMocks(unittest.TestCase):
                 self.contacts.update_contact(1, email="updated@example.com")
                 self.contacts.update_contact(1, work_phone="987-654-3210")
 
-    @unittest.expectedFailure
-    @pytest.mark.xfail(reason="Temporary workaround - Fix _validate_item", strict=False)
     def test_phone_validation_formats(self):
         """Test various phone format scenarios."""
         test_cases = [
@@ -161,7 +152,7 @@ class TestContactsWithMocks(unittest.TestCase):
             ("123-abc-def0", True),   # Mixed letters and digits
             ("", False),              # Empty string (will be ignored in validation)
             ("not a phone", True),    # Nonsensical string
-            ("12345", False),         # Just digits, should be valid
+            ("1234567", False),       # Just digits, at least 7, should be valid
             ("123-45", True),         # Incomplete format
         ]
         

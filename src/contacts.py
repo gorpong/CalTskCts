@@ -37,8 +37,10 @@ class Contacts(StateManagerBase[ContactData]):
                 raise ValueError(f"Missing required field: {field}")
         
         # Validate email format if provided
-        if item.get("email"):
-            if "@" not in item["email"]:
+        email = item.get("email")
+        if email is not None:
+            stripped = email.strip()
+            if stripped and not re.fullmatch(r'^(".*?"|[\w\.+-]+)@[\w\.-]+\.\w{2,}$', stripped):
                 raise ValueError("Invalid email format")
         
         # Validate phone numbers if provided
@@ -46,12 +48,13 @@ class Contacts(StateManagerBase[ContactData]):
         for field in phone_fields:
             raw_value = item.get(field)
             if raw_value:
-                # Remove non-digit characters except '+'
-                cleaned_value = re.sub(r"[^\d+]", "", raw_value)
-                
-                # Ensure valid format
-                if not re.fullmatch(r"\+?\d+", cleaned_value):
+                stripped = raw_value.strip()
+                if not re.fullmatch(r"^\+?[\d\s\.\-\(\)]+$", stripped):
                     raise ValueError(f"Invalid phone number format in {field}")
+                
+                digit_count = len(re.sub(r"\D", "", stripped))
+                if not (7 <= digit_count <= 15):
+                    raise ValueError(f"{field} must have between 7 and 15 digits")
         
         return True
 
