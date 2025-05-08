@@ -33,10 +33,10 @@ class Tasks(StateManagerBase[TaskData]):
             raise ValueError("Title is required")
             
         # Validate date format if provided
-        if item.get("dueDate"):
+        if "dueDate" in item:
             try:
                 datetime.strptime(item["dueDate"], "%m/%d/%Y")
-            except ValueError:
+            except (TypeError, ValueError):
                 raise ValueError("Invalid date format. Use MM/DD/YYYY")
         
         # Validate progress range
