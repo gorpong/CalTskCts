@@ -214,21 +214,24 @@ class Calendar(StateManagerBase[EventData]):
         booked_slots = []
         for event in self.items.values():
             event_start = datetime.strptime(event["date"], "%m/%d/%Y %H:%M")
-            event_duration = event["duration"]
-            booked_slots.append((event_start, event_duration))
+            event_end = event_start + timedelta(minutes=event["duration"])
+            booked_slots.append((event_start, event_end))
             
         booked_slots.sort()  # Sort by start time
         
-        # Check each booked slot for gaps
-        for booked_start, booked_duration in booked_slots:
-            if booked_start >= start:
-                gap_duration = (booked_start - start).total_seconds() / 60
-                if gap_duration >= duration_minutes:
-                    return start.strftime("%m/%d/%Y %H:%M")
-                start = booked_start + timedelta(minutes=booked_duration)
-        
-        # If we get here, return the last available time
-        return start.strftime("%m/%d/%Y %H:%M")
+        while True:
+            conflict_found = False
+            proposed_end = start + timedelta(minutes=duration_minutes)
+            
+            for event_start, event_end in booked_slots:
+                if start < event_end and proposed_end > event_start:
+                    # Conflict found, move start to end of this event
+                    start = event_end
+                    conflict_found = True
+                    break
+                
+            if not conflict_found:
+                return start.strftime("%m/%d/%Y %H:%M")
 
     def list_events(self) -> Dict[int, Any]:
         """

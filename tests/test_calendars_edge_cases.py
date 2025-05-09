@@ -3,7 +3,6 @@ import tempfile
 import unittest
 from datetime import datetime
 from unittest.mock import patch, MagicMock
-import pytest
 
 from calendars import Calendar, EventData
 
@@ -91,7 +90,6 @@ class TestCalendarEdgeCases(unittest.TestCase):
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0]["title"], "Morning Meeting")
     
-    @pytest.mark.xfail(reason="Temporary Workaround - Logic error", strict=False)
     def test_find_next_available_with_overlapping_events(self):
         """Test finding next available time with overlapping events."""
 
