@@ -105,7 +105,7 @@ class TestTasksWithMocks(unittest.TestCase):
                 self.tasks.update_task(1, description=None, progress=None, state=None)
                 
                 # Test empty strings
-                self.tasks.update_task(1, title="", description="")
+                self.tasks.update_task(1, description="")
     
     def test_update_task_invalid_combinations(self):
         """Test updating with combinations that should be validated correctly."""

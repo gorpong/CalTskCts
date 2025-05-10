@@ -51,7 +51,6 @@ class TestContacts(unittest.TestCase):
     
     def tearDown(self):
         """Tear down test fixtures after each test method."""
-        # Remove the temporary file
         if os.path.exists(self.temp_file_path):
             os.remove(self.temp_file_path)
     
@@ -130,6 +129,7 @@ class TestContacts(unittest.TestCase):
         # Verify contact was added correctly
         contacts = self.contacts.list_contacts()
         self.assertEqual(len(contacts), 4)  # 3 from setUp + 1 new one
+        self.assertEqual(contacts[4]["first_name"], "New")
     
     def test_add_contact_with_custom_id(self):
         """Test adding a contact with a custom ID."""

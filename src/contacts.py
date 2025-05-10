@@ -1,6 +1,11 @@
 from typing import Dict, List, Optional, Any
 from state_manager import StateManagerBase
-import re
+from validation_utils import (
+    validate_required_fields,
+    validate_email_format,
+    validate_phone_format
+)
+
 
 class ContactData(Dict[str, Any]):
     """Type for contact data with expected fields."""
@@ -31,17 +36,14 @@ class Contacts(StateManagerBase[ContactData]):
             ValueError: If validation fails
         """
         # Check required fields
-        required_fields = ["first_name", "last_name"]
-        for field in required_fields:
-            if field not in item or not item[field]:
-                raise ValueError(f"Missing required field: {field}")
+        validate_required_fields(item, ["first_name", "last_name"])
         
         # Validate email format if provided
         email = item.get("email")
         if email is not None:
-            stripped = email.strip()
-            if stripped and not re.fullmatch(r'^(".*?"|[\w\.+-]+)@[\w\.-]+\.\w{2,}$', stripped):
-                raise ValueError("Invalid email format")
+            stripped = email.strip() if email else ""
+            if stripped:
+                validate_email_format(stripped)
         
         # Validate phone numbers if provided
         phone_fields = ["work_phone", "mobile_phone", "home_phone"]
@@ -49,12 +51,7 @@ class Contacts(StateManagerBase[ContactData]):
             raw_value = item.get(field)
             if raw_value:
                 stripped = raw_value.strip()
-                if not re.fullmatch(r"^\+?[\d\s\.\-\(\)]+$", stripped):
-                    raise ValueError(f"Invalid phone number format in {field}")
-                
-                digit_count = len(re.sub(r"\D", "", stripped))
-                if not (7 <= digit_count <= 15):
-                    raise ValueError(f"{field} must have between 7 and 15 digits")
+                validate_phone_format(stripped, field)
         
         return True
 

@@ -71,7 +71,7 @@ class TestTasks(unittest.TestCase):
         }
         with self.assertRaises(ValueError) as context:
             self.tasks._validate_item(invalid_item)
-        self.assertEqual(str(context.exception), "Title is required")
+        self.assertEqual(str(context.exception), "Missing required field: title")
 
     def test_validate_item_invalid_date_format(self):
         """Test validation of task data with invalid date format."""
@@ -110,7 +110,7 @@ class TestTasks(unittest.TestCase):
         invalid_item["progress"] = "50%"
         with self.assertRaises(ValueError) as context:
             self.tasks._validate_item(invalid_item)
-        self.assertEqual(str(context.exception), "Progress must be a number between 0 and 100")
+        self.assertEqual(str(context.exception), "Progress must be a number")
     
     def test_validate_item_invalid_state(self):
         """Test validation of task data with invalid state."""

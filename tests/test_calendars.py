@@ -43,7 +43,6 @@ class TestCalendar(unittest.TestCase):
     
     def tearDown(self):
         """Tear down test fixtures after each test method."""
-        # Remove the temporary file
         if os.path.exists(self.temp_file_path):
             os.remove(self.temp_file_path)
     
@@ -66,7 +65,7 @@ class TestCalendar(unittest.TestCase):
         }
         with self.assertRaises(ValueError) as context:
             self.calendar._validate_item(invalid_item)
-        self.assertEqual(str(context.exception), "Title is required")
+        self.assertEqual(str(context.exception), "Missing required field: title")
     
     def test_validate_item_invalid_date_format(self):
         """Test validation of event data with invalid date format."""
@@ -91,13 +90,13 @@ class TestCalendar(unittest.TestCase):
         }
         with self.assertRaises(ValueError) as context:
             self.calendar._validate_item(invalid_item)
-        self.assertEqual(str(context.exception), "Duration must be a positive integer")
+        self.assertEqual(str(context.exception), "Duration must be a number larger than 1")
         
         # Test with non-integer duration
         invalid_item["duration"] = "60 minutes"
         with self.assertRaises(ValueError) as context:
             self.calendar._validate_item(invalid_item)
-        self.assertEqual(str(context.exception), "Duration must be a positive integer")
+        self.assertEqual(str(context.exception), "Duration must be a number")
     
     def test_validate_item_invalid_users(self):
         """Test validation of event data with invalid users list."""

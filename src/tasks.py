@@ -1,6 +1,12 @@
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 from state_manager import StateManagerBase
+from validation_utils import (
+    validate_required_fields,
+    validate_date_format,
+    validate_numeric_range,
+    validate_enum_value
+)
 
 class TaskData(Dict[str, Any]):
     """Type for task data with expected fields."""
@@ -29,24 +35,19 @@ class Tasks(StateManagerBase[TaskData]):
             ValueError: If validation fails
         """
         # Check required fields
-        if "title" not in item:
-            raise ValueError("Title is required")
+        validate_required_fields(item, ["title"])
             
         # Validate date format if provided
-        if "dueDate" in item:
-            try:
-                datetime.strptime(item["dueDate"], "%m/%d/%Y")
-            except (TypeError, ValueError):
-                raise ValueError("Invalid date format. Use MM/DD/YYYY")
+        if "dueDate" in item and item["dueDate"] is not None:
+            validate_date_format(item["dueDate"], "%m/%d/%Y")
         
         # Validate progress range
         if "progress" in item:
-            if not isinstance(item["progress"], (int, float)) or not 0 <= item["progress"] <= 100:
-                raise ValueError("Progress must be a number between 0 and 100")
+            validate_numeric_range(item["progress"], "Progress", 0, 100)
         
         # Validate state if provided
-        if "state" in item and item["state"] not in self.VALID_STATES:
-            raise ValueError(f"Invalid state. Must be one of: {', '.join(self.VALID_STATES)}")
+        if "state" in item:
+            validate_enum_value(item["state"], self.VALID_STATES, "state")
             
         return True
 

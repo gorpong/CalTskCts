@@ -1,6 +1,12 @@
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 from state_manager import StateManagerBase
+from validation_utils import (
+    validate_required_fields,
+    validate_date_format,
+    validate_numeric_range,
+    validate_list_type
+)
 
 
 class EventData(Dict[str, Any]):
@@ -28,24 +34,24 @@ class Calendar(StateManagerBase[EventData]):
             ValueError: If validation fails
         """
         # Check required fields
-        if "title" not in item:
-            raise ValueError("Title is required")
+        validate_required_fields(item, ["title"])
             
-        # Validate date and time format
+        # Validate date and time format if present
         if "date" in item:
-            try:
-                datetime.strptime(item["date"], "%m/%d/%Y %H:%M")
-            except ValueError:
-                raise ValueError("Invalid date format. Use MM/DD/YYYY HH:MM")
+            validate_date_format(item["date"], "%m/%d/%Y %H:%M")
         
-        # Validate duration
+        # Validate duration if present
         if "duration" in item:
-            if not isinstance(item["duration"], int) or item["duration"] <= 0:
-                raise ValueError("Duration must be a positive integer")
+            validate_numeric_range(
+                value = item["duration"],
+                field_name = "Duration", 
+                min_value = 1, 
+                numeric_type = int
+            )
         
-        # Validate users list
-        if "users" in item and not isinstance(item["users"], list):
-            raise ValueError("Users must be a list")
+        # Validate users list if present
+        if "users" in item:
+            validate_list_type(item["users"], "Users")
             
         return True
 

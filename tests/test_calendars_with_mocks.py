@@ -313,7 +313,7 @@ class TestCalendarsWithMocks(unittest.TestCase):
         # Test missing title
         with self.assertRaises(ValueError) as context:
             calendar._validate_item({"date": "05/15/2023 09:00"})
-        self.assertEqual(str(context.exception), "Title is required")
+        self.assertEqual(str(context.exception), "Missing required field: title")
         
         # Test invalid date with specific mock
         with patch('calendars.datetime') as mock_datetime:
