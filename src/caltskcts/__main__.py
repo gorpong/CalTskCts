@@ -2,17 +2,16 @@ import json
 import os
 import readline
 import atexit
-import traceback
-from typing import Dict, Any, List
-from datetime import datetime
+from typing import Dict, Any, List, Union
 
 # Local imports
-from calendars import Calendar
-from tasks import Tasks
-from contacts import Contacts
-from logger import get_logger, log_exception
+from caltskcts.calendars import Calendar
+from caltskcts.tasks import Tasks
+from caltskcts.contacts import Contacts
+from caltskcts.logger import get_logger, log_exception
+from caltskcts.config import DATABASE_URI
 
-HISTORY_FILE = ".calMsgCts_history"
+HISTORY_FILE = ".calTskCts_history"
 
 # Initialize logger
 logger = get_logger()
@@ -38,9 +37,9 @@ def setup_readline(command_map: Dict[str, List[str]]) -> None:
     atexit.register(readline.write_history_file, HISTORY_FILE)
 
     # Enable auto-completion
-    def completer(text: str, state: int) -> str:
+    def completer(text: str, state: int) -> Union[str, None]:
         # Flatten command list
-        commands = []
+        commands: List[str] = []
         for cmd_list in command_map.values():
             commands.extend(cmd_list)
             
@@ -166,12 +165,15 @@ def main() -> None:
     try:
         # Initialize objects with data files
         logger.info("Initializing application components")
-        cal = Calendar("_calendar.json")
-        tsk = Tasks("_tasks.json")
-        ctc = Contacts("_contacts.json")
+        #cal = Calendar("_calendar.json")
+        #tsk = Tasks("_tasks.json")
+        #ctc = Contacts("_contacts.json")
+        cal = Calendar(DATABASE_URI)
+        tsk = Tasks(DATABASE_URI)
+        ctc = Contacts(DATABASE_URI)
         
         # Create context with available objects
-        context = {
+        context: Dict[str, Any] = {
             "cal": cal,
             "tsk": tsk,
             "ctc": ctc,

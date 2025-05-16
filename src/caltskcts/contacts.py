@@ -1,13 +1,13 @@
-from typing import Dict, List, Optional, Any
-from state_manager import StateManagerBase
-from validation_utils import (
+from typing import Dict, List, Optional, Any, MutableMapping
+from caltskcts.state_manager import StateManagerBase
+from caltskcts.validation_utils import (
     validate_required_fields,
     validate_email_format,
     validate_phone_format
 )
 
 
-class ContactData(Dict[str, Any]):
+class ContactData(MutableMapping[str, Any]):
     """Type for contact data with expected fields."""
     first_name: str
     last_name: str
@@ -22,7 +22,7 @@ class ContactData(Dict[str, Any]):
 class Contacts(StateManagerBase[ContactData]):
     """Manages lists of contacts and their information such as email, phone numbers, etc."""
     
-    def _validate_item(self, item: Dict[str, Any]) -> bool:
+    def _validate_item(self, item: MutableMapping[str, Any]) -> bool:
         """
         Validate contact data before adding/updating.
         
@@ -90,7 +90,7 @@ class Contacts(StateManagerBase[ContactData]):
         if not contact_id:
             contact_id = self._get_next_id()
         
-        contact_data = {
+        contact_data: MutableMapping[str, Any] = {
             "first_name": first_name,
             "last_name": last_name,
             "title": title,
@@ -104,7 +104,7 @@ class Contacts(StateManagerBase[ContactData]):
         # Validate data before adding
         self._validate_item(contact_data)
         
-        if self.add_item(contact_id, contact_data):
+        if self.add_item(contact_id, contact_data): # type: ignore
             return f"Contact {contact_id} added"
         else:
             raise ValueError(f"Contact with ID {contact_id} already exists.")
@@ -146,7 +146,7 @@ class Contacts(StateManagerBase[ContactData]):
             raise ValueError(f"Contact with ID {contact_id} does not exist.")
             
         # Build updates dictionary
-        updates = {
+        updates: MutableMapping[str, Any] = {
             k: v for k, v in {
                 "first_name": first_name,
                 "last_name": last_name,
@@ -160,10 +160,10 @@ class Contacts(StateManagerBase[ContactData]):
         }
         
         # Create merged data for validation
-        merged_data = {**current_data, **updates}
+        merged_data: Dict[str, Any] = {**current_data, **updates}
         self._validate_item(merged_data)
         
-        if self.update_item(contact_id, updates):
+        if self.update_item(contact_id, updates): # type: ignore
             return f"Contact {contact_id} updated"
         else:
             raise ValueError(f"Failed to update contact {contact_id}")

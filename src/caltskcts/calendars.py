@@ -1,7 +1,7 @@
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, MutableMapping, Tuple
 from datetime import datetime, timedelta
-from state_manager import StateManagerBase
-from validation_utils import (
+from caltskcts.state_manager import StateManagerBase
+from caltskcts.validation_utils import (
     validate_required_fields,
     validate_date_format,
     validate_numeric_range,
@@ -9,7 +9,7 @@ from validation_utils import (
 )
 
 
-class EventData(Dict[str, Any]):
+class EventData(MutableMapping[str, Any]):
     """Type for event data with expected fields."""
     title: str
     date: str  # "MM/DD/YYYY HH:MM" format
@@ -20,7 +20,7 @@ class EventData(Dict[str, Any]):
 class Calendar(StateManagerBase[EventData]):
     """Manages calendar events and scheduling."""
     
-    def _validate_item(self, item: Dict[str, Any]) -> bool:
+    def _validate_item(self, item: MutableMapping[str, Any]) -> bool:
         """
         Validate event data before adding/updating.
         
@@ -82,7 +82,7 @@ class Calendar(StateManagerBase[EventData]):
         if not event_id:
             event_id = self._get_next_id()
             
-        event_data = {
+        event_data: MutableMapping[str, Any] = {
             "title": title,
             "date": date,
             "duration": duration,
@@ -92,7 +92,7 @@ class Calendar(StateManagerBase[EventData]):
         # Validate before adding
         self._validate_item(event_data)
         
-        if self.add_item(event_id, event_data):
+        if self.add_item(event_id, event_data): # type: ignore
             return f"Event {event_id} Added"
         else:
             raise ValueError(f"Event with ID {event_id} already exists.")
@@ -125,7 +125,7 @@ class Calendar(StateManagerBase[EventData]):
         if not current_data:
             raise ValueError(f"Event with ID {event_id} does not exist.")
             
-        updates = {k: v for k, v in {
+        updates: MutableMapping[str, Any] = {k: v for k, v in { # type: ignore
             "title": title,
             "date": date,
             "duration": duration,
@@ -136,7 +136,7 @@ class Calendar(StateManagerBase[EventData]):
         merged_data = {**current_data, **updates}
         self._validate_item(merged_data)
         
-        if self.update_item(event_id, updates):
+        if self.update_item(event_id, updates): # type: ignore
             return f"Event {event_id} updated"
         else:
             raise ValueError(f"Failed to update event {event_id}")
@@ -159,7 +159,7 @@ class Calendar(StateManagerBase[EventData]):
         else:
             raise ValueError(f"Event with ID {event_id} does not exist.")
     
-    def get_events_by_date(self, date: str) -> List[EventData]:
+    def get_events_by_date(self, date: str) -> List[Dict[str, Any]]:
         """
         Find all events on a specific date.
         
@@ -169,13 +169,13 @@ class Calendar(StateManagerBase[EventData]):
         Returns:
             List of events on that date
         """
-        results = []
+        results: List[Dict[str, Any]] = []
         for event_id, event in self.items.items():
             if event["date"].startswith(date):
                 results.append({"event_id": int(event_id), **event})
         return results
     
-    def get_events_between(self, start_datetime: str, end_datetime: str) -> List[EventData]:
+    def get_events_between(self, start_datetime: str, end_datetime: str) -> List[Dict[str, Any]]:
         """
         Get all events between two dates (inclusive).
         
@@ -195,7 +195,7 @@ class Calendar(StateManagerBase[EventData]):
         start = datetime.strptime(start_datetime, "%m/%d/%Y %H:%M")
         end = datetime.strptime(end_datetime, "%m/%d/%Y %H:%M")
         
-        results = []
+        results: List[Dict[str, Any]] = []
         for event_id, event in self.items.items():
             event_time = datetime.strptime(event["date"], "%m/%d/%Y %H:%M")
             if start <= event_time <= end:
@@ -217,7 +217,7 @@ class Calendar(StateManagerBase[EventData]):
         start = datetime.strptime(start_datetime, "%m/%d/%Y %H:%M")
         
         # Get all booked times sorted by start time
-        booked_slots = []
+        booked_slots: List[Tuple[datetime, datetime]] = []
         for event in self.items.values():
             event_start = datetime.strptime(event["date"], "%m/%d/%Y %H:%M")
             event_end = event_start + timedelta(minutes=event["duration"])

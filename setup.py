@@ -1,21 +1,24 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="server-admin-tool",
+    name="caltskcts",
     version="0.1.0",
-    description="An interactive command-line tool for server administration including disk, process, and ticket management.",
+    description="An interactive command-line tool for Calendar, Contacts, Tasks Management",
     author="Your Name",
     author_email="youremail@example.com",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     entry_points={
         "console_scripts": [
-            "srvadmin=main:main",
+            "caltskcts = caltskcts.__main__:main",
         ],
     },
     install_requires=[
-        # This project uses only the standard library.
-        # Add any external packages here if needed.
+        "SQLAlchemy>=1.4",
+        "pytest==8.3.4",
+        "pytest-asyncio==0.25.3",
+        "pytest-django==4.9.0",
+        "psycopg[binary]"
     ],
     classifiers=[
         "Programming Language :: Python :: 3",

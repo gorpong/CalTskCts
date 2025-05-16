@@ -1,7 +1,7 @@
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, MutableMapping
 from datetime import datetime
-from state_manager import StateManagerBase
-from validation_utils import (
+from caltskcts.state_manager import StateManagerBase
+from caltskcts.validation_utils import (
     validate_required_fields,
     validate_date_format,
     validate_numeric_range,
@@ -80,7 +80,7 @@ class Tasks(StateManagerBase[TaskData]):
         if not task_id:
             task_id = self._get_next_id()
         
-        task_data = {
+        task_data: MutableMapping[str, Any] = {
             "title": title,
             "desc": description,
             "dueDate": due_date,
@@ -91,7 +91,7 @@ class Tasks(StateManagerBase[TaskData]):
         # Validate before adding
         self._validate_item(task_data)
         
-        if self.add_item(task_id, task_data):
+        if self.add_item(task_id, task_data): # type: ignore
             return f"Task {task_id} added"
         else:
             raise ValueError(f"Task with ID {task_id} already exists.")
@@ -146,10 +146,10 @@ class Tasks(StateManagerBase[TaskData]):
                 updates["progress"] = 100.0
                 
         # Create merged data for validation
-        merged_data = {**current_data, **updates}
+        merged_data: MutableMapping[str, Any] = {**current_data, **updates}
         self._validate_item(merged_data)
 
-        if self.update_item(task_id, updates):
+        if self.update_item(task_id, updates): # type: ignore
             return f"Task {task_id} updated"
         else:
             raise ValueError(f"Failed to update task {task_id}")
@@ -187,7 +187,7 @@ class Tasks(StateManagerBase[TaskData]):
             
         today_date = datetime.strptime(today, "%m/%d/%Y")
         
-        results = []
+        results: List[Any] = []
         for task_id, task in self.items.items():
             if not task["dueDate"] or task["state"] == "Completed":
                 continue
@@ -210,7 +210,7 @@ class Tasks(StateManagerBase[TaskData]):
         """
         target_date = datetime.strptime(date, "%m/%d/%Y")
         
-        results = []
+        results: List[Any] = []
         for task_id, task in self.items.items():
             if not task["dueDate"] or task["state"] == "Completed":
                 continue
@@ -233,7 +233,7 @@ class Tasks(StateManagerBase[TaskData]):
         """
         target_date = datetime.strptime(date, "%m/%d/%Y")
         
-        results = []
+        results: List[Any] = []
         for task_id, task in self.items.items():
             if not task["dueDate"] or task["state"] == "Completed":
                 continue
@@ -259,7 +259,7 @@ class Tasks(StateManagerBase[TaskData]):
         Returns:
             List of tasks within the progress range
         """
-        results = []
+        results: List[Any] = []
         for task_id, task in self.items.items():
             progress = task["progress"]
             if min_progress <= progress <= max_progress:

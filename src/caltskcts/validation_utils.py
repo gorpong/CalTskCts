@@ -3,12 +3,11 @@ Validation utilities for StateManagerBase subclasses.
 Contains common validation functions that can be reused across different
 item types (Calendar events, Contacts, Tasks, etc.)
 """
-from typing import Dict, Any, List, Optional, Callable, Type
+from typing import Any, List, Optional, Type, Mapping, Tuple, Union
 from datetime import datetime
 import re
 
-
-def validate_required_fields(item: Dict[str, Any], required_fields: List[str]) -> None:
+def validate_required_fields(item: Mapping[str, Any], required_fields: List[str]) -> None:
     """
     Validate that all required fields are present and non-empty.
     
@@ -42,16 +41,16 @@ def validate_date_format(date_str: str, date_format: str) -> None:
         readable_format = readable_format.replace("%H", "HH").replace("%M", "MM")
         raise ValueError(f"Invalid date format. Use {readable_format}")
 
-
 def validate_numeric_range(
     value: Any, 
     field_name: str, 
     min_value: Optional[float] = None,
     max_value: Optional[float] = None,
-    numeric_type: Optional[Type] = float
+    numeric_type: Union[Type[Any], Tuple[Type[Any], ...]] = (int, float)
 ) -> None:
     """
-    Validate that a numeric value is within the specified range.
+    Validate that `value` is an instance of `numeric_type` and, if provided, 
+    lies between the inclusive [min_value, max_value] range.
     
     Args:
         value: Value to validate
@@ -63,17 +62,19 @@ def validate_numeric_range(
     Raises:
         ValueError: If value is not a number or outside range
     """
-    if not isinstance(value, (int, float, numeric_type)):
+    if not isinstance(value, numeric_type):
         raise ValueError(f"{field_name} must be a number")
     
-    if max_value is not None and min_value is None:
-        if value > max_value:
-            raise ValueError(f"{field_name} must be a number less than {max_value}")
-    elif min_value is not None and max_value is None:
-        if value < min_value:
+    if min_value is not None and value < min_value:
+        if max_value is None:
             raise ValueError(f"{field_name} must be a number larger than {min_value}")
-    elif (value < min_value or value > max_value):
-        raise ValueError(f"{field_name} must be a number between {min_value} and {max_value}")
+        else:
+            raise ValueError(f"{field_name} must be a number between {min_value} and {max_value}")
+    if max_value is not None and value > max_value:
+        if min_value is None:
+            raise ValueError(f"{field_name} must be a number less than {max_value}")
+        else:
+            raise ValueError(f"{field_name} must be a number between {min_value} and {max_value}")
 
 def validate_list_type(value: Any, field_name: str) -> None:
     """
