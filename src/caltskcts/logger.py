@@ -1,5 +1,5 @@
 """
-Logger module for CalMsgsCts application.
+Logger module for CalTskCts application.
 Provides centralized logging configuration for console and file output.
 """
 
@@ -8,16 +8,17 @@ import sys
 import logging
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
-from typing import Optional, Dict, Any, Union
+from typing import Optional, Dict, Any, Union, MutableMapping
 
 # Import the configuration setup
-from logger_config import setup_logging
+from caltskcts.logger_config import setup_logging
 
 # Constants - Used as fallback if config file is not available
+DEFAULT_ROOT_LOGGER = "CalTskCts"
 DEFAULT_LOG_LEVEL = logging.INFO
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 DEFAULT_LOG_DIR = "logs"
-DEFAULT_LOG_FILENAME = "calmsgcts.log"
+DEFAULT_LOG_FILENAME = "caltskcts.log"
 MAX_LOG_SIZE = 5 * 1024 * 1024  # 5 MB
 BACKUP_COUNT = 5  # Keep 5 backup logs
 
@@ -25,7 +26,7 @@ BACKUP_COUNT = 5  # Keep 5 backup logs
 _logger: Optional[logging.Logger] = None
 _is_configured: bool = False
 
-def get_logger(name: str = "CalMsgsCts") -> logging.Logger:
+def get_logger(name: str = DEFAULT_ROOT_LOGGER) -> logging.Logger:
     """
     Get or create a configured logger instance.
     
@@ -50,13 +51,13 @@ def get_logger(name: str = "CalMsgsCts") -> logging.Logger:
             _is_configured = True
     
     # Get a logger with the specified name
-    if name == "CalMsgsCts" and _logger is not None:
+    if name == DEFAULT_ROOT_LOGGER and _logger is not None:
         return _logger
     
     logger = logging.getLogger(name)
     
     # Store the root application logger
-    if name == "CalMsgsCts":
+    if name == DEFAULT_ROOT_LOGGER:
         _logger = logger
     
     return logger
@@ -143,7 +144,7 @@ def set_log_level(level: Union[int, str]):
         if isinstance(handler, logging.StreamHandler) and not isinstance(handler, logging.FileHandler):
             handler.setLevel(level)
     
-    logging.info(f"Log level set to {logging.getLevelName(level)}")
+    logging.info(f"Log level set to {logging.getLevelName(level)}") # type: ignore
 
 def get_logs_stats() -> Dict[str, Any]:
     """
@@ -152,13 +153,13 @@ def get_logs_stats() -> Dict[str, Any]:
     Returns:
         Dictionary with log statistics
     """
-    stats = {
+    stats: MutableMapping[str, Any] = {
         "log_level": logging.getLevelName(logging.getLogger().level),
         "handlers": []
     }
     
     for handler in logging.getLogger().handlers:
-        handler_info = {
+        handler_info: MutableMapping[str, Any] = {
             "type": handler.__class__.__name__,
             "level": logging.getLevelName(handler.level)
         }

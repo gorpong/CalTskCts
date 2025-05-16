@@ -4,5 +4,5 @@ __pycache__/
 /_calendar.json
 /_tasks.json
 /_contacts.json
-/.calMsgCts_history
+/.calTskCts_history
 /logs/
