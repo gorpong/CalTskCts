@@ -47,6 +47,9 @@ class TestArgParseBehavior(unittest.TestCase):
             cal.assert_called_once()
             tsk.assert_called_once()
             ctc.assert_called_once()
+            cal.assert_called_with("_calendar.json")
+            tsk.assert_called_with("_tasks.json")
+            ctc.assert_called_with("_contacts.json")
 
     @patch("sys.argv", ["program", "--database", "custom.db"])
     def test_backend_database_uri(self):
