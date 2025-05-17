@@ -1,8 +1,8 @@
 import unittest
-from unittest.mock import patch, mock_open
+from unittest.mock import patch
 from datetime import datetime
 
-from tasks import Tasks, TaskData
+from caltskcts.tasks import Tasks
 
 class TestTasksWithMocks(unittest.TestCase):
     """Test suite for the Tasks class using mocks to isolate from file system."""
@@ -215,7 +215,7 @@ class TestTasksWithMocks(unittest.TestCase):
         }
         
         # Test get_tasks_due_today with May 15, 2023 as today
-        with patch('tasks.datetime') as mock_datetime:
+        with patch('caltskcts.tasks.datetime') as mock_datetime:
             mock_datetime.now.return_value = datetime(2023, 5, 15, 12, 0)
             mock_datetime.strptime.side_effect = datetime.strptime
             

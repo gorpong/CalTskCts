@@ -2,9 +2,9 @@ import os
 import tempfile
 import unittest
 from datetime import datetime
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-from tasks import Tasks, TaskData
+from caltskcts.tasks import Tasks
 
 class TestTasks(unittest.TestCase):
     """Test suite for the Tasks class."""
@@ -247,7 +247,7 @@ class TestTasks(unittest.TestCase):
     def test_get_tasks_due_today(self):
         """Test getting tasks due today or before."""
         # Mock today's date to make test deterministic
-        with patch('tasks.datetime') as mock_datetime:
+        with patch('caltskcts.tasks.datetime') as mock_datetime:
             mock_datetime.now.return_value = datetime(2023, 5, 17, 12, 0)
             mock_datetime.strptime.side_effect = datetime.strptime
             

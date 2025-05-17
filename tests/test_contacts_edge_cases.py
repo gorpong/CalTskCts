@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from contacts import Contacts, ContactData
+from caltskcts.contacts import Contacts
 
 class TestContactsEdgeCases(unittest.TestCase):
     """Test suite focusing on edge cases for the Contacts class."""

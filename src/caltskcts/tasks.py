@@ -21,7 +21,7 @@ class Tasks(StateManagerBase[TaskData]):
     
     VALID_STATES = ["Not Started", "In Progress", "Completed", "On Hold", "Cancelled"]
     
-    def _validate_item(self, item: Dict[str, Any]) -> bool:
+    def _validate_item(self, item: MutableMapping[str, Any]) -> bool:
         """
         Validate task data before adding/updating.
         

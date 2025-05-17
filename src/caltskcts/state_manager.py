@@ -1,13 +1,13 @@
 from abc import ABC, abstractmethod
 import json
-from typing import Dict, Any, List, Optional, TypeVar, Generic
+from typing import Dict, Any, List, Optional, TypeVar, Generic, MutableMapping, cast
 import re
 
 # Import our logger
-from logger import get_logger, log_exception
+from caltskcts.logger import get_logger, log_exception
 
 # Define a generic type for item data
-T = TypeVar('T', bound=Dict[str, Any])
+T = TypeVar('T', bound=MutableMapping[str, Any])
 
 class StateManagerBase(ABC, Generic[T]):
     """
@@ -27,9 +27,9 @@ class StateManagerBase(ABC, Generic[T]):
         self.logger.info(f"Initializing {self.__class__.__name__} with state file: {state_file}")
         
         self.state_file = state_file
-        self._state: Dict[str, T] = self._load_state()
+        self._state: T = self._load_state()
     
-    def _load_state(self) -> Dict[str, T]:
+    def _load_state(self) -> T:
         """
         Load state from the state file.
         
@@ -43,10 +43,10 @@ class StateManagerBase(ABC, Generic[T]):
                 return state
         except FileNotFoundError:
             self.logger.warning(f"State file not found: {self.state_file}, using empty state")
-            return {}
+            return cast(T, {})
         except json.JSONDecodeError as e:
             self.logger.error(f"Error parsing state file {self.state_file}: {str(e)}")
-            return {}
+            return cast(T, {})
     
     def _save_state(self) -> None:
         """Save current state to the state file."""
@@ -194,7 +194,7 @@ class StateManagerBase(ABC, Generic[T]):
         return {int(k): v for k, v in self._state.items()}
     
     @property
-    def items(self) -> Dict[str, T]:
+    def items(self) -> T:
         """
         Access state data directly with string keys.
         
@@ -203,7 +203,7 @@ class StateManagerBase(ABC, Generic[T]):
         """
         return self._state
 
-    def search_items(self, query: str, fields: List[str]) -> List[Dict[str, Any]]:
+    def search_items(self, query: str, fields: List[str]) -> List[T]:
         """
         Generic search function that searches across specified fields using regex.
         
@@ -222,19 +222,19 @@ class StateManagerBase(ABC, Generic[T]):
             self.logger.error(error_msg)
             raise ValueError(error_msg)
             
-        results = []
+        results: List[T] = []
         for item_id, item in self._state.items():
             for field in fields:
                 field_value = item.get(field, "")
                 if field_value and query_regex.search(str(field_value)):
-                    results.append({"item_id": int(item_id), **item})
+                    results.append(cast(T, {"item_id": int(item_id), **item}))
                     break  # Found in one field, no need to check others
         
         self.logger.debug(f"Search found {len(results)} results")
         return results
 
     @abstractmethod
-    def _validate_item(self, item: Dict[str, Any]) -> bool:
+    def _validate_item(self, item: MutableMapping[str, Any]) -> bool:
         """
         Validate item data before adding/updating.
         To be implemented by subclasses for specific validation rules.

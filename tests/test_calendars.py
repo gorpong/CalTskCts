@@ -1,10 +1,8 @@
 import os
 import tempfile
 import unittest
-from datetime import datetime, timedelta
-from unittest.mock import patch, MagicMock
 
-from calendars import Calendar, EventData
+from caltskcts.calendars import Calendar, EventData
 
 class TestCalendar(unittest.TestCase):
     """Test suite for the Calendar class."""

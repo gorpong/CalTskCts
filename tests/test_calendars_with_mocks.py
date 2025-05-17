@@ -3,9 +3,9 @@ import tempfile
 import unittest
 import json
 from datetime import datetime
-from unittest.mock import patch, MagicMock, mock_open, call
+from unittest.mock import patch, mock_open
 
-from calendars import Calendar, EventData
+from caltskcts.calendars import Calendar
 
 
 class TestCalendarsWithMocks(unittest.TestCase):

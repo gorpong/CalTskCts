@@ -1,7 +1,7 @@
 import unittest
-from unittest.mock import patch, mock_open
+from unittest.mock import patch
 
-from contacts import Contacts
+from caltskcts.contacts import Contacts
 
 class TestContactsWithMocks(unittest.TestCase):
     """Test suite for the Contacts class using mocks to isolate from file system."""

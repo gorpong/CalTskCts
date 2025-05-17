@@ -1,9 +1,8 @@
 import os
 import tempfile
 import unittest
-from unittest.mock import patch, MagicMock
 
-from contacts import Contacts, ContactData
+from caltskcts.contacts import Contacts
 
 class TestContacts(unittest.TestCase):
     """Test suite for the Contacts class."""

@@ -1,10 +1,8 @@
 import os
 import tempfile
 import unittest
-from datetime import datetime
-from unittest.mock import patch, MagicMock
 
-from calendars import Calendar, EventData
+from caltskcts.calendars import Calendar
 
 class TestCalendarEdgeCases(unittest.TestCase):
     """Test suite for edge cases in the Calendar class."""
