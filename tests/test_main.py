@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import patch
 from caltskcts.__main__ import dispatch_command, get_command_map
+import io
 
 class TestDispatchCommand(unittest.TestCase):
     def setUp(self):
@@ -34,6 +35,13 @@ class TestCommandMap(unittest.TestCase):
         self.assertTrue(all(isinstance(v, list) for v in command_map.values()))
 
 class TestArgParseBehavior(unittest.TestCase):
+    @patch("sys.argv", ["program", "--files", "--database"])
+    def test_mutually_exclusive_args_fail(self):
+        from caltskcts.__main__ import main
+        with self.assertRaises(SystemExit), patch("sys.stderr", new=io.StringIO()) as fake_err:
+            main()
+        self.assertIn("not allowed with argument", fake_err.getvalue())
+    
     @patch("sys.argv", ["program", "--files"])
     def test_default_backend_files(self):
         from caltskcts.__main__ import main
