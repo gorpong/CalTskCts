@@ -6,3 +6,4 @@ __pycache__/
 /_contacts.json
 /.calTskCts_history
 /logs/
+/data/app.db

@@ -133,7 +133,7 @@ class TestCalendarsWithMocks(unittest.TestCase):
         calendar = Calendar(self.temp_file_path)
         self.assertEqual(calendar._get_next_id(), 6)  # Max ID (5) + 1
     
-    @patch('calendars.datetime')
+    @patch('caltskcts.calendars.datetime')
     @patch('builtins.open', new_callable=mock_open)
     def test_find_next_available_with_datetime_mock(self, mock_open, mock_datetime):
         """Test find_next_available with mocked datetime functionality."""
@@ -316,7 +316,7 @@ class TestCalendarsWithMocks(unittest.TestCase):
         self.assertEqual(str(context.exception), "Missing required field: title")
         
         # Test invalid date with specific mock
-        with patch('calendars.datetime') as mock_datetime:
+        with patch('caltskcts.calendars.datetime') as mock_datetime:
             mock_datetime.strptime.side_effect = ValueError("Invalid date")
             with self.assertRaises(ValueError) as context:
                 calendar._validate_item({

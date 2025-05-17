@@ -9,11 +9,11 @@ class TestContactsWithMocks(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures before each test method."""
         # Use patch to mock the file operations
-        self.state_file_patcher = patch('contacts.StateManagerBase._load_state')
+        self.state_file_patcher = patch('caltskcts.contacts.StateManagerBase._load_state')
         self.mock_load_state = self.state_file_patcher.start()
         
         # Mock the _save_state method to prevent actual file writes
-        self.save_state_patcher = patch('contacts.StateManagerBase._save_state')
+        self.save_state_patcher = patch('caltskcts.contacts.StateManagerBase._save_state')
         self.mock_save_state = self.save_state_patcher.start()
         
         # Setup empty initial state
