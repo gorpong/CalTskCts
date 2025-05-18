@@ -105,6 +105,20 @@ Otherwise, start the interactive command-line tool by running:
 PYTHONPATH=src python -m caltskcts
 ```
 
+### Optional Command Line Arguments
+
+```text
+usage: caltskcts [-h] [-f | -db [DATABASE]]
+
+Calendar, Tasks, and Contacts Manager
+
+options:
+  -h, --help            show this help message and exit
+  -f, --files           Use JSON files for state storage (default)
+  -db [DATABASE], --database [DATABASE]
+                        Use SQLite database for state storage (optional path; defaults to config.DATABASE_URI [data/app.db])
+```
+
 Follow the on-screen instructions to enter commands.
 
 ## Running Tests

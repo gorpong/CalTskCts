@@ -2,7 +2,9 @@ import json
 import os
 import readline
 import atexit
+import argparse
 from typing import Dict, Any, List, Union
+import re
 
 # Local imports
 from caltskcts.calendars import Calendar
@@ -15,6 +17,41 @@ HISTORY_FILE = ".calTskCts_history"
 
 # Initialize logger
 logger = get_logger()
+
+def extract_sqlite_path(uri: str) -> str:
+    match = re.match(r"sqlite:///(.+)", uri)
+    return match.group(1) if match else uri
+
+def parse_arguments() -> argparse.Namespace:
+    """Parse command line arguments for storage selection."""
+    parser = argparse.ArgumentParser(description="Calendar, Tasks, and Contacts Manager")
+    
+    # Create a mutually exclusive group for storage options
+    storage_group = parser.add_mutually_exclusive_group()
+    storage_group.add_argument("-f", "--files", action="store_true", 
+                              help="Use JSON files for storage (default)")
+    storage_group.add_argument("-db", "--database", nargs="?", const=DATABASE_URI, metavar="DB_PATH",
+                              help="Use SQLite database for storage (optionally specify path)")
+    
+    args = parser.parse_args()
+    
+    # If neither option is specified, default to files
+    if not args.files and not args.database:
+        args.files = True
+    
+    # If database is specified, ensure it has the correct SQLAlchemy prefix
+    if args.database:
+        if not args.database.startswith("sqlite:///"):
+            args.database = f"sqlite:///{args.database}"
+        db_path = extract_sqlite_path(args.database)
+        # Convert relative or absolute path to SQLAlchemy URI format
+        if not os.path.isabs(db_path):
+            # For relative paths, make sure the directory exists
+            db_dir = os.path.dirname(db_path)
+            if db_dir and not os.path.exists(db_dir):
+                os.makedirs(db_dir)
+    
+    return args
 
 def setup_readline(command_map: Dict[str, List[str]]) -> None:
     """
@@ -163,14 +200,25 @@ def main() -> None:
     logger.info("Application starting")
     
     try:
+        # Parse command line arguments
+        args = parse_arguments()
+        
+        # Determine storage type based on arguments
+        if args.files:
+            logger.info("Using JSON files for storage")
+            cal = Calendar("_calendar.json")
+            tsk = Tasks("_tasks.json")
+            ctc = Contacts("_contacts.json")
+            storage_type = "file-based"
+        else:  # args.database must be True due to mutually exclusive group
+            logger.info(f"Using database for storage: {args.database}")
+            cal = Calendar(args.database)
+            tsk = Tasks(args.database)
+            ctc = Contacts(args.database)
+            storage_type = "database"
+
         # Initialize objects with data files
         logger.info("Initializing application components")
-        #cal = Calendar("_calendar.json")
-        #tsk = Tasks("_tasks.json")
-        #ctc = Contacts("_contacts.json")
-        cal = Calendar(DATABASE_URI)
-        tsk = Tasks(DATABASE_URI)
-        ctc = Contacts(DATABASE_URI)
         
         # Create context with available objects
         context: Dict[str, Any] = {
@@ -188,6 +236,7 @@ def main() -> None:
         # Print welcome message and instructions
         logger.info("Starting interactive mode")
         print("Interactive Mode: Enter commands to interact with Calendar, Tasks, and Contacts.")
+        print(f"Storage: Using {storage_type} storage")
         print("Available objects: `cal` (Calendar), `tsk` (Tasks), and `ctc` (Contacts).")
         print("Example commands:")
         print("  cal.add_event(title='Meeting', date='12/19/2024 09:00', duration=60, users=['Alice', 'Bob'])")
