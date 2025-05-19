@@ -1,4 +1,7 @@
 from typing import Dict, List, Optional, Any, MutableMapping
+from sqlalchemy import Integer, String
+from sqlalchemy.orm import Mapped, mapped_column
+from caltskcts.state_manager import Base, StateManagerBase
 from caltskcts.state_manager import StateManagerBase
 from caltskcts.validation_utils import (
     validate_required_fields,
@@ -6,21 +9,23 @@ from caltskcts.validation_utils import (
     validate_phone_format
 )
 
+class ContactORM(Base):
+    __tablename__ = "contacts"
+    
+    id:           Mapped[int]           = mapped_column(Integer, primary_key=True)
+    first_name:   Mapped[str]           = mapped_column(String, nullable=False)
+    last_name:    Mapped[str]           = mapped_column(String, nullable=False)
+    title:        Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    company:      Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    work_phone:   Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    mobile_phone: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    home_phone:   Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    email:        Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
-class ContactData(MutableMapping[str, Any]):
-    """Type for contact data with expected fields."""
-    first_name: str
-    last_name: str
-    title: Optional[str]
-    company: Optional[str]
-    work_phone: Optional[str]
-    mobile_phone: Optional[str]
-    home_phone: Optional[str]
-    email: Optional[str]
-
-
-class Contacts(StateManagerBase[ContactData]):
+class Contacts(StateManagerBase[ContactORM]):
     """Manages lists of contacts and their information such as email, phone numbers, etc."""
+
+    Model = ContactORM   # tell the base which ORM class to use
     
     def _validate_item(self, item: MutableMapping[str, Any]) -> bool:
         """
@@ -146,7 +151,7 @@ class Contacts(StateManagerBase[ContactData]):
             raise ValueError(f"Contact with ID {contact_id} does not exist.")
             
         # Build updates dictionary
-        updates: MutableMapping[str, Any] = {
+        updates = {
             k: v for k, v in {
                 "first_name": first_name,
                 "last_name": last_name,
@@ -159,7 +164,7 @@ class Contacts(StateManagerBase[ContactData]):
             }.items() if v is not None
         }
         
-        # Create merged data for validation
+       # Create merged data for validation
         merged_data: Dict[str, Any] = {**current_data, **updates}
         self._validate_item(merged_data)
         
@@ -186,7 +191,7 @@ class Contacts(StateManagerBase[ContactData]):
         else:
             raise ValueError(f"Contact with ID {contact_id} does not exist.")
 
-    def search_contacts(self, query: str) -> List[ContactData]:
+    def search_contacts(self, query: str) -> List[Dict[str, Any]]:
         """
         Search contacts by name, email, or phone number.
         
@@ -211,7 +216,7 @@ class Contacts(StateManagerBase[ContactData]):
         """
         return self.list_items()
 
-    def get_contact(self, contact_id: int) -> Optional[ContactData]:
+    def get_contact(self, contact_id: int) -> Optional[Dict[str, Any]]:
         """
         Get a specific contact based on the contact ID.
         

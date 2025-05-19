@@ -1,6 +1,8 @@
 from typing import Dict, List, Optional, Any, MutableMapping, Tuple
 from datetime import datetime, timedelta
-from caltskcts.state_manager import StateManagerBase
+from sqlalchemy import Integer, String, DateTime, JSON
+from sqlalchemy.orm import Mapped, mapped_column
+from caltskcts.state_manager import Base, StateManagerBase
 from caltskcts.validation_utils import (
     validate_required_fields,
     validate_date_format,
@@ -8,18 +10,20 @@ from caltskcts.validation_utils import (
     validate_list_type
 )
 
+class CalendarORM(Base):
+    __tablename__ = "calendars"
+    
+    id:       Mapped[int]       = mapped_column(Integer, primary_key=True)
+    title:    Mapped[str]       = mapped_column(String, nullable=False)
+    date:     Mapped[datetime]  = mapped_column(DateTime, nullable=False)
+    duration: Mapped[int]       = mapped_column(Integer, nullable=False)
+    users:    Mapped[List[str]] = mapped_column(JSON, nullable=False)
 
-class EventData(MutableMapping[str, Any]):
-    """Type for event data with expected fields."""
-    title: str
-    date: str  # "MM/DD/YYYY HH:MM" format
-    duration: int  # minutes
-    users: List[str]
-
-
-class Calendar(StateManagerBase[EventData]):
+class Calendar(StateManagerBase[CalendarORM]):
     """Manages calendar events and scheduling."""
     
+    Model = CalendarORM
+
     def _validate_item(self, item: MutableMapping[str, Any]) -> bool:
         """
         Validate event data before adding/updating.
@@ -133,7 +137,7 @@ class Calendar(StateManagerBase[EventData]):
         }.items() if v is not None}
         
         # Create merged data for validation
-        merged_data = {**current_data, **updates}
+        merged_data: Dict[str, Any] = {**current_data, **updates}
         self._validate_item(merged_data)
         
         if self.update_item(event_id, updates): # type: ignore
@@ -248,7 +252,7 @@ class Calendar(StateManagerBase[EventData]):
         """
         return self.list_items()
 
-    def get_event(self, event_id: int) -> Optional[EventData]:
+    def get_event(self, event_id: int) -> Optional[Dict[int, Any]]:
         """
         Get a specific event based on the event's ID.
         
