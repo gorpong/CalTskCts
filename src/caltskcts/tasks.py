@@ -1,6 +1,8 @@
 from typing import Dict, List, Optional, Any, MutableMapping
-from datetime import datetime
-from caltskcts.state_manager import StateManagerBase
+from datetime import datetime, date
+from sqlalchemy import Integer, Float, String, Date
+from sqlalchemy.orm import Mapped, mapped_column
+from caltskcts.state_manager import Base, StateManagerBase
 from caltskcts.validation_utils import (
     validate_required_fields,
     validate_date_format,
@@ -8,16 +10,20 @@ from caltskcts.validation_utils import (
     validate_enum_value
 )
 
-class TaskData(Dict[str, Any]):
-    """Type for task data with expected fields."""
-    title: str
-    desc: str
-    dueDate: Optional[str]  # "MM/DD/YYYY" format
-    progress: float
-    state: str
+class TaskORM(Base):
+    __tablename__ = "tasks"
 
-class Tasks(StateManagerBase[TaskData]):
+    id:       Mapped[int]            = mapped_column(Integer, primary_key=True)
+    title:    Mapped[str]            = mapped_column(String,  nullable=False)
+    desc:     Mapped[Optional[str]]  = mapped_column(String,  nullable=True)
+    dueDate:  Mapped[Optional[date]] = mapped_column(Date,    nullable=True)
+    progress: Mapped[float]          = mapped_column(Float,   nullable=False)
+    state:    Mapped[str]            = mapped_column(String,  nullable=False)
+    
+class Tasks(StateManagerBase[TaskORM]):
     """Manages tasks and their due dates, status, and completion progress."""
+    
+    Model = TaskORM
     
     VALID_STATES = ["Not Started", "In Progress", "Completed", "On Hold", "Cancelled"]
     
@@ -172,7 +178,7 @@ class Tasks(StateManagerBase[TaskData]):
         else:
             raise ValueError(f"Task with ID {task_id} does not exist.")
 
-    def get_tasks_due_today(self, today: Optional[str] = None) -> List[TaskData]:
+    def get_tasks_due_today(self, today: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Get all tasks due today or before.
         
@@ -198,7 +204,7 @@ class Tasks(StateManagerBase[TaskData]):
                 
         return results
 
-    def get_tasks_due_on(self, date: str) -> List[TaskData]:
+    def get_tasks_due_on(self, date: str) -> List[Dict[str, Any]]:
         """
         Get all tasks due on a specific date.
         
@@ -221,7 +227,7 @@ class Tasks(StateManagerBase[TaskData]):
                 
         return results
 
-    def get_tasks_due_on_or_before(self, date: str) -> List[TaskData]:
+    def get_tasks_due_on_or_before(self, date: str) -> List[Dict[str, Any]]:
         """
         Get all tasks due on or before a date.
         
@@ -248,7 +254,7 @@ class Tasks(StateManagerBase[TaskData]):
         self,
         min_progress: float = 0.0,
         max_progress: float = 100.0
-    ) -> List[TaskData]:
+    ) -> List[Dict[str, Any]]:
         """
         Get tasks filtered by progress range.
         
@@ -267,7 +273,7 @@ class Tasks(StateManagerBase[TaskData]):
                 
         return results
 
-    def get_tasks_by_state(self, state: str = "Not Started") -> List[TaskData]:
+    def get_tasks_by_state(self, state: str = "Not Started") -> List[Dict[str, Any]]:
         """
         Get tasks matching a state pattern.
         
@@ -288,7 +294,7 @@ class Tasks(StateManagerBase[TaskData]):
         """
         return self.list_items()
     
-    def get_task(self, task_id: int) -> Optional[TaskData]:
+    def get_task(self, task_id: int) -> Optional[Dict[str, Any]]:
         """
         Get a specific task based on the task's ID.
         

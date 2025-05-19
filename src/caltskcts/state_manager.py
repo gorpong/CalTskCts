@@ -1,25 +1,28 @@
-# state_manager.py
 import json
 import re
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Generic, List, Optional, TypeVar, MutableMapping, cast
+from typing import Any, Dict, List, Optional, Type, TypeVar, Generic
+from datetime import date, datetime
+
+from sqlalchemy import create_engine, Date, DateTime
+from sqlalchemy.orm import declarative_base, sessionmaker, DeclarativeMeta
 
 from caltskcts.logger import get_logger, log_exception
 
-T = TypeVar("T", bound=MutableMapping[str, Any])
+# Base class for ORM models
+Base = declarative_base()
 
-# --- SQLAlchemy imports for DB backend ---
-from sqlalchemy import (
-    create_engine, Table, Column, Integer, MetaData, JSON as SA_JSON, select
-)
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import sessionmaker
+# Type variable for ORM model classes
+ModelType = TypeVar("ModelType", bound=DeclarativeMeta)
 
-class StateManagerBase(ABC, Generic[T]):
+class StateManagerBase(ABC, Generic[ModelType]):
     """
-    Abstract base class for managing state data either in JSON files
-    or in a relational database (SQLite/Postgres) via SQLAlchemy.
+    Base class for managing state via JSON files or SQLAlchemy ORM.
+    Subclasses must define a `Model` attribute (an ORM class inheriting from Base)
+    and implement `_validate_item` to enforce field constraints.
     """
+    _state: Dict[int, Any] # unified in-memory cache of DB or JSON rows
+    Model: Type[ModelType]
 
     def __init__(self, state_uri: str):
         """
@@ -30,101 +33,77 @@ class StateManagerBase(ABC, Generic[T]):
         self.state_uri = state_uri
 
         if "://" in state_uri:
-            # --- DB backend initialization ---
+            # --- DB backend (ORM) ---
             self._use_db = True
             self.engine = create_engine(state_uri, future=True)
-            self.Session = sessionmaker(bind=self.engine, future=True)
-            self.metadata = MetaData()
-            # we name the table after the subclass, e.g. "contacts", "calendars", ...
-            self.table = Table(
-                self.__class__.__name__.lower(),
-                self.metadata,
-                Column("id", Integer, primary_key=True),
-                Column("data", SA_JSON, nullable=False),
-            )
-            self.metadata.create_all(self.engine)
-            self._state: T = self._load_state_db()
-            self.logger.info(f"Loaded {len(self._state)} items from DB table {self.table.name}")
+            self.SessionLocal = sessionmaker(bind=self.engine, future=True)
+            # create tables
+            Base.metadata.create_all(self.engine)
+            # load existing data
+            self._state = self._load_state_db()
         else:
-            # --- JSON‐file backend (existing behavior) ---
+            # --- JSON‐file backend ---
             self._use_db = False
             self.logger.info(f"Initializing {self.__class__.__name__} with state file: {state_uri}")
             self.state_file = state_uri
-            self._state: T = self._load_state_file()
+            self._state = self._load_state_file()
 
-    def _load_state(self) -> T:
+    def _load_state(self) -> Dict[int, Any]:
         """ Alias for the old file-based loader, or DB loader if using SQL. """
         return self._load_state_db() if self._use_db else self._load_state_file()
-    
-    def _save_state(self) -> None:
-        """ Alias for the old file-base saver; no-op for DB (per-record save). """
-        if self._use_db:
-            return
-        return self._save_state_file()
 
-    # ----------------------
-    # JSON‐backend methods
-    # ----------------------
-    def _load_state_file(self) -> T:
+    def _load_state_db(self) -> Dict[int, Any]:
+        """Load all rows from the database into the in‐memory dict."""
+        state: Dict[int, Any] = {}
+        try:
+            with self.SessionLocal() as session:
+                for obj in session.query(self.Model).all():
+                    state[obj.id] = obj # type: ignore[attr-defined]
+            self.logger.info(f"Loaded {len(state)} items from table '{self.Model.__tablename__}' table") # type: ignore
+        except Exception as e:
+            log_exception(e, "Failed to load state from DB")
+            state = {}
+        return state
+
+    def _load_state_file(self) -> Dict[int, Any]:
         """
         Load state from the state file.
         
         Returns:
             Dict containing the loaded state or an empty dict if file doesn't exist
         """
+        state: Dict[int, Any] = {}
         try:
-            with open(self.state_file, "r") as f:
-                return json.load(f)
+            with open(self.state_file, 'r') as f:
+                data = json.load(f)
+            # convert keys to int
+            state = {int(k): v for k, v in data.items()}
+            self.logger.info(f"Loaded {len(state)} items from JSON file '{self.state_file}'")
         except FileNotFoundError:
-            self.logger.warning(f"State file not found: {self.state_file}, using empty state")
-            return cast(T, {})
+            self.logger.warning(f"State file not found: {self.state_file}. Using empty state.")
         except json.JSONDecodeError as e:
-            self.logger.error(f"Error parsing state file {self.state_file}: {e}")
-            return cast(T, {})
+            log_exception(e, f"Error parsing JSON file: {self.state_file}")
+        return state
+        
+    def _save_state(self) -> None:
+        """ Alias for the old file-base saver; no-op for DB (per-record save). """
+        if self._use_db:
+            return
+        return self._save_state_file()
 
     def _save_state_file(self) -> None:
-        """Save current state to the state file."""
+        """
+        Persist state to JSON file (file backend only).
+        """
         try:
-            with open(self.state_file, "w") as f:
-                json.dump(self._state, f, indent=4)
+            # convert keys to string for JSON
+            data = {str(k): v for k, v in self._state.items()}
+            with open(self.state_file, 'w') as f:
+                json.dump(data, f, indent=4)
         except Exception as e:
             log_exception(e, f"Failed to save state to {self.state_file}")
             raise
 
-    # ----------------------
-    # DB‐backend methods
-    # ----------------------
-    def _load_state_db(self) -> T:
-        """Load all rows from the database into the in‐memory dict."""
-        state: T = cast(T, {})
-        with self.Session() as session:
-            for row in session.execute(select(self.table)).all():
-                # row[0] is the id, row[1] is the JSON data
-                state[str(row[0])] = row[1]  # type: ignore
-        return state
-
-    def _save_one_db(self, item_id: int, data: T) -> None:
-        """Insert or update a single record in the DB."""
-        with self.Session() as session:
-            try:
-                session.execute(
-                    self.table.insert().values(id=item_id, data=data)
-                )
-            except IntegrityError:
-                # already exists -> do update
-                session.execute(
-                    self.table.update()
-                         .where(self.table.c.id == item_id)
-                         .values(data=data)
-                )
-            session.commit()
-
-    def _delete_one_db(self, item_id: int) -> None:
-        with self.Session() as session:
-            session.execute(
-                self.table.delete().where(self.table.c.id == item_id)
-            )
-            session.commit()
 
     # ----------------------
     # Shared CRUD entry points
@@ -140,7 +119,7 @@ class StateManagerBase(ABC, Generic[T]):
             return 1
         return max(int(k) for k in self._state) + 1
 
-    def get_item(self, item_id: int) -> Optional[T]:
+    def get_item(self, item_id: int) -> Optional[Any]:
         """
         Get an item by its ID.
         
@@ -150,14 +129,55 @@ class StateManagerBase(ABC, Generic[T]):
         Returns:
             The item data or None if not found
         """
-        result = self._state.get(str(item_id))
-        if result is None:
+        obj = self._state.get(item_id)
+        if obj is None:
             self.logger.debug(f"Item with ID {item_id} not found")
-        else:
-            self.logger.debug(f"Retrieved item with ID {item_id}")
-        return result
+            return None
+        self.logger.debug(f"Retrieved item with ID {item_id}")
+        if self._use_db:
+            flat: Dict[str, Any] = {}
+            for col in obj.__table__.columns:   # type: ignore[attr-defined]
+                v = getattr(obj, col.name)      # type: ignore[attr-defined]
+                if isinstance(v, datetime):
+                    flat[col.name] = v.strftime("%m/%d/%Y %H:%M")
+                    print(f"Item {item_id} {col.name} is a datetime, {flat[col.name]}")
+                elif isinstance(v, date):
+                    flat[col.name] = v.strftime("%m/%d/%Y")
+                    print(f"Item {item_id} {col.name} is a date, {flat[col.name]}")
+                else:
+                    flat[col.name] = v
+            return flat
+        # JSON-file mode: obj is already a dict
+        return obj
 
-    def add_item(self, item_id: int, item_data: T) -> bool:
+    def list_items(self) -> Dict[int, Any]:
+        """
+        List all items with integer keys.
+        
+        Returns:
+            Dictionary of items with integer keys
+        """
+        self.logger.debug(f"Listing {len(self._state)} items")
+        if getattr(self, "_use_db", False):
+            # DB mode: convert each ORM instance into a plain dict
+            result: Dict[int, Any] = {}
+            for item_id, obj in self._state.items():
+                flat = {}
+                for col in obj.__table__.columns:   # type: ignore[attr-defined]
+                    v = getattr(obj, col.name)      # type: ignore[attr-defined]
+                    if isinstance(v, datetime):
+                        flat[col.name] = v.strftime("%m/%d/%Y %H:%M")
+                    elif isinstance(v, date):
+                        flat[col.name] = v.strftime("%m/%d/%Y")
+                    else:
+                        flat[col.name] = v
+                result[item_id] = flat
+            return result
+        
+        # File-based mode, just return the in-memory dict
+        return dict(self._state)
+
+    def add_item(self, item_id: int, item_data: Dict[str, Any]) -> bool:
         """
         Add an item to state with the specified ID.
         
@@ -168,30 +188,39 @@ class StateManagerBase(ABC, Generic[T]):
         Returns:
             True if added successfully, False if ID already exists
         """
-        item_key = str(item_id)
-        if item_key in self._state:
+        if item_id in self._state:
             self.logger.warning(f"Failed to add item: ID {item_id} already exists")
             return False
 
-        try:
-            # Validate the item before adding
-            self._validate_item(item_data)
-            
-            self._state[item_key] = item_data
-            if self._use_db:
-                self._save_one_db(item_id, item_data)
-            else:
-                self._save_state_file()
-            self.logger.info(f"Added item with ID {item_id}")
-            return True
-        except ValueError as e:
-            self.logger.error(f"Validation error adding item ID {item_id}: {str(e)}")
-            raise
-        except Exception as e:
-            log_exception(e, f"Error adding item with ID {item_id}")
-            raise
+        self._validate_item(item_data)
+        if self._use_db:
+            kwargs = dict(item_data)
+            for col in self.Model.__table__.columns:     # type: ignore[attr-defined]
+                name = col.name # type: ignore
+                if name in kwargs and isinstance(kwargs[name], str):
+                    val = kwargs[name]
+                    if isinstance(col.type, Date): # type: ignore[attr-defined]
+                        kwargs[name] = datetime.strptime(val, "%m/%d/%Y").date()
+                    elif isinstance(col.type, DateTime): # type: ignore[attr-defined]
+                        kwargs[name] = datetime.strptime(val, "%m/%d/%Y %H:%M")
 
-    def update_item(self, item_id: int, updates: T) -> bool:
+            try:
+                inst = self.Model(id=item_id, **kwargs) # type: ignore
+                with self.SessionLocal() as session:
+                    session.add(inst)
+                    session.commit()
+                    session.refresh(inst)
+                self._state[item_id] = inst
+            except Exception as e:
+                log_exception(e, f"Failed to add item {item_id} to DB")
+                return False
+        else:
+            self._state[item_id] = item_data
+            self._save_state_file()
+        self.logger.info(f"Added item with ID {item_id}")
+        return True
+
+    def update_item(self, item_id: int, updates: Dict[str, Any]) -> bool:
         """
         Update an existing item with partial updates.
         
@@ -202,28 +231,52 @@ class StateManagerBase(ABC, Generic[T]):
         Returns:
             True if updated successfully, False if item doesn't exist
         """
-        key = str(item_id)
-        if key not in self._state:
-            self.logger.warning(f"Failed to update item: ID {item_id} not found")
+        if item_id not in self._state:
             return False
-        
-        try:
-            new_data: T = cast(T, {**self._state[key], **updates})
+        if self._use_db:
+            try:
+                with self.SessionLocal() as session:
+                    inst = session.get(self.Model, item_id)
+                    if inst is None:
+                        return False
+                    # apply updates
+                    for k, v in updates.items():
+                        if isinstance(v, str):
+                            col = self.Model.__table__.columns[k] # type: ignore[attr-defined]
+                            if isinstance(col.type, Date): # type: ignore[attr-defined]
+                                v = datetime.strptime(v, "%m/%d/%Y").date()
+                            elif isinstance(col.type, DateTime):  # type: ignore[attr-defined]
+                                v = datetime.strptime(v, "%m/%d/%Y %H:%M")
+                        setattr(inst, k, v)
+
+                    # build a flat dict for validation, formatting dates/times
+                    current_map: Dict[str, Any] = {}
+                    for col in inst.__table__.columns:  # type: ignore[attr-defined]
+                        val = getattr(inst, col.name)     # type: ignore[attr-defined]
+                        if isinstance(val, datetime):
+                            # keep HH:MM for Calendar ORM
+                            current_map[col.name] = val.strftime("%m/%d/%Y %H:%M") # type: ignore[attr-defined]
+                        elif isinstance(val, date):
+                            # tasks only care about MM/DD/YYYY
+                            current_map[col.name] = val.strftime("%m/%d/%Y") # type: ignore[attr-defined]
+                        else:
+                            current_map[col.name] = val # type: ignore[attr-defined]
+
+                    # now validate with exactly the same format as JSON mode
+                    self._validate_item(current_map)
+                    session.commit()
+                    session.refresh(inst)
+                self._state[item_id] = inst
+                return True
+            except Exception as e:
+                log_exception(e, f"Failed to update item {item_id} in DB")
+                return False
+        else:
+            new_data = {**self._state[item_id], **updates} # type: ignore
             self._validate_item(new_data)
-            self._state[key].update(updates)
-            if self._use_db:
-                self._save_one_db(item_id, self._state[key])
-            else:
-                self._save_state_file()
-            self.logger.info(f"Updated item with ID {item_id} - fields: {', '.join(updates.keys())}")
+            self._state[item_id].update(updates)
+            self._save_state_file()
             return True
-        
-        except ValueError as e:
-            self.logger.error(f"Validation error updating item ID {item_id}: {str(e)}")
-            raise
-        except Exception as e:
-            log_exception(e, f"Error updating item with ID {item_id}")
-            raise
 
     def delete_item(self, item_id: int) -> bool:
         """
@@ -235,34 +288,27 @@ class StateManagerBase(ABC, Generic[T]):
         Returns:
             True if deleted successfully, False if item doesn't exist
         """
-        key = str(item_id)
-        if key not in self._state:
-            self.logger.warning(f"Failed to delete item: ID {item_id} not found")
+        if item_id not in self._state:
             return False
-
-        try:
-            del self._state[key]
-            if self._use_db:
-                self._delete_one_db(item_id)
-            else:
-                self._save_state_file()
-            self.logger.info(f"Deleted item with ID {item_id}")
+        if self._use_db:
+            try:
+                with self.SessionLocal() as session:
+                    inst = session.get(self.Model, item_id)
+                    if inst is None:
+                        return False
+                    session.delete(inst)
+                    session.commit()
+                del self._state[item_id]
+                return True
+            except Exception as e:
+                log_exception(e, f"Failed to delete item {item_id} from DB")
+                return False
+        else:
+            del self._state[item_id]
+            self._save_state_file()
             return True
-        except Exception as e:
-            log_exception(e, f"Error deleting item with ID {item_id}")
-            raise
 
-    def list_items(self) -> Dict[int, T]:
-        """
-        List all items with integer keys.
-        
-        Returns:
-            Dictionary of items with integer keys
-        """
-        self.logger.debug(f"Listing {len(self._state)} items")
-        return {int(k): v for k, v in self._state.items()}
-
-    def search_items(self, query: str, fields: List[str]) -> List[T]:
+    def search_items(self, query: str, fields: List[str]) -> List[Dict[str, Any]]:
         """
         Generic search function that searches across specified fields using regex.
         
@@ -281,29 +327,34 @@ class StateManagerBase(ABC, Generic[T]):
             self.logger.error(error_msg)
             raise ValueError(error_msg)
         
-        results: List[T] = []
-        for id_str, item in self._state.items():
+        results: List[Dict[str, Any]] = []
+        for item_id, item in self._state.items():
+            if self._use_db:
+                row = {col.name: getattr(item, col.name) for col in item.__table__.columns}
+                row["item_id"] = item_id
+            else:
+                row: Dict[str, Any] = {"item_id": item_id, **item}
             for f in fields:
-                if f in item and item[f] and query_regex.search(str(item[f])):
-                    results.append(cast(T, {"item_id": int(id_str), **item}))
-                    break   # Found in one field, no need to check others
+                if f in row and row[f] and query_regex.search(str(row[f])):
+                    results.append(row)
+                    break
                 
         self.logger.debug(f"Search found {len(results)} results")
         return results
 
     @property
-    def items(self) -> T:
+    def items(self) -> Dict[int, Any]:
         """
-        Access state data directly with string keys.
+        Access state data directly with int keys.
         
         Returns:
-            Dictionary of all items with string keys
+            Dictionary of all items with int keys.
         """
-        return self._state
+        return self.list_items()
 
     # --- Force subclasses to continue providing per‐type validation ---
     @abstractmethod
-    def _validate_item(self, item: T) -> bool:
+    def _validate_item(self, item: Any) -> bool:
         """
         Validate item data before adding/updating.
         To be implemented by subclasses for specific validation rules.
