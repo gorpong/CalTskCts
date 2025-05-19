@@ -10,7 +10,7 @@ import re
 from caltskcts.calendars import Calendar
 from caltskcts.tasks import Tasks
 from caltskcts.contacts import Contacts
-from caltskcts.logger import get_logger, log_exception
+from caltskcts.logger import get_logger, log_exception, set_log_level
 from caltskcts.config import DATABASE_URI
 
 HISTORY_FILE = ".calTskCts_history"
@@ -70,6 +70,7 @@ def setup_readline(command_map: Dict[str, List[str]]) -> None:
         except Exception as e:
             logger.warning(f"Failed to read history file: {e}")
 
+    readline.set_history_length(500)
     # Save command history on exit
     atexit.register(readline.write_history_file, HISTORY_FILE)
 
