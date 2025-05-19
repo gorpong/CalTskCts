@@ -1,77 +1,119 @@
 # tests/test_contacts_db_with_mocks.py
 
 import unittest
+from typing import Dict, Any
 from unittest.mock import patch
 
-from caltskcts.contacts import Contacts, ContactData
+from caltskcts.contacts import Contacts, ContactORM
 from caltskcts.state_manager import StateManagerBase
 
+class DummySession:
+    """Minimal session‐like object for testing."""
+    def __init__(self, store: Dict[int, Any] = None):
+        self.store = store or {}
+        self.added = []
+        self.deleted = []
+        self.commits = 0
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        pass
+
+    def add(self, obj):
+        self.added.append(obj)
+
+    def commit(self):
+        self.commits += 1
+
+    def refresh(self, obj):
+        pass
+
+    def get(self, model, item_id):
+        return self.store.get(item_id)
+
+    def delete(self, obj):
+        self.deleted.append(obj)
+
+
 class TestContactsDBWithMocks(unittest.TestCase):
-    """Exercise the DB-backend path of Contacts, mocking out the actual SQL calls."""
+    """Exercise the DB‐backend path of Contacts by stubbing out the session."""
 
     def setUp(self):
-        # Use an in-memory SQLite URI so that __init__ picks the DB path
         self.db_uri = "sqlite:///:memory:"
-
-        # Sample contact payload
-        self.sample: ContactData = {
+        self.sample: Dict[str, Any] = {
             "first_name": "Alice",
-            "last_name": "Wonderland",
-            "title": "Tester",
-            "company": "QA Inc.",
+            "last_name":  "Wonderland",
+            "title":      "Tester",
+            "company":    "QA Inc.",
             "work_phone": "555-1234",
-            "mobile_phone": "+1-800-999-8888",
+            "mobile_phone":"+1-800-999-8888",
             "home_phone": None,
-            "email": "alice@example.com",
+            "email":      "alice@example.com",
         }
 
     @patch.object(StateManagerBase, "_load_state_db", return_value={})
-    @patch.object(StateManagerBase, "_save_one_db")
-    def test_add_contact_calls_save_one_db(self, mock_save_one, mock_load_db):
+    def test_add_contact_calls_session_add_and_commit(self, _):
+        dummy = DummySession()
         c = Contacts(self.db_uri)
-        # add_item should return True and call _save_one_db exactly once
-        added = c.add_contact(**self.sample, contact_id=42)
-        self.assertTrue(added)
-        mock_save_one.assert_called_once_with(42, self.sample)
+        # overwrite the instance's SessionLocal factory
+        c.SessionLocal = lambda: dummy
+
+        msg = c.add_contact(**self.sample, contact_id=42)
+        self.assertTrue("added" in msg.lower())
+
+        # Verify exactly one object was added
+        self.assertEqual(len(dummy.added), 1)
+        inst = dummy.added[0]
+        self.assertIsInstance(inst, ContactORM)
+        self.assertEqual(inst.id, 42)
+        for k, v in self.sample.items():
+            self.assertEqual(getattr(inst, k), v)
+
+        # commit must have been called once
+        self.assertEqual(dummy.commits, 1)
 
     @patch.object(StateManagerBase, "_load_state_db")
-    @patch.object(StateManagerBase, "_save_one_db")
-    def test_update_contact_calls_save_one_db(self, mock_save_one, mock_load_db):
-        # pre-load one existing contact ID=7
-        original = { "7": dict(self.sample) }
-        mock_load_db.return_value = original
+    def test_update_contact_calls_session_commit(self, mock_load_db):
+        original = ContactORM(id=7, **self.sample)
+        mock_load_db.return_value = {7: original}
+
+        dummy = DummySession(store={7: original})
         c = Contacts(self.db_uri)
+        c.SessionLocal = lambda: dummy
 
-        # update phone number
-        new_phone = "000-111-2222"
-        updated = c.update_contact(7, work_phone=new_phone)
-        self.assertTrue(updated)
+        msg = c.update_contact(7, work_phone="000-111-2222")
+        self.assertTrue("updated" in msg.lower())
 
-        # Expect _save_one_db called with merged payload
-        expected = dict(self.sample)
-        expected["work_phone"] = new_phone
-        mock_save_one.assert_called_once_with(7, expected)
+        # The original instance was mutated
+        self.assertEqual(original.work_phone, "000-111-2222")
+        self.assertEqual(dummy.commits, 1)
 
     @patch.object(StateManagerBase, "_load_state_db")
-    @patch.object(StateManagerBase, "_delete_one_db")
-    def test_delete_contact_calls_delete_one_db(self, mock_delete_one, mock_load_db):
-        # pre-load two contacts
-        mock_load_db.return_value = { "5": self.sample, "6": self.sample }
-        c = Contacts(self.db_uri)
+    def test_delete_contact_calls_session_delete_and_commit(self, mock_load_db):
+        inst5 = ContactORM(id=5, **self.sample)
+        mock_load_db.return_value = {5: inst5}
 
-        deleted = c.delete_contact(5)
-        self.assertTrue(deleted)
-        mock_delete_one.assert_called_once_with(5)
-
-    @patch.object(StateManagerBase, "_load_state_db", return_value={})
-    @patch.object(StateManagerBase, "_save_one_db")
-    def test_add_duplicate_id_raises_value_error(self, mock_save_one, mock_load_db):
-        # Simulate that ID 100 already exists in DB
-        mock_load_db.return_value = { "100": self.sample }
+        dummy = DummySession(store={5: inst5})
         c = Contacts(self.db_uri)
+        c.SessionLocal = lambda: dummy
+
+        msg = c.delete_contact(5)
+        self.assertTrue("deleted" in msg.lower())
+
+        self.assertEqual(dummy.deleted, [inst5])
+        self.assertEqual(dummy.commits, 1)
+
+    @patch.object(StateManagerBase, "_load_state_db", return_value={100: ContactORM(id=100, **{})})
+    def test_add_duplicate_id_raises_value_error(self, _):
+        dummy = DummySession()
+        c = Contacts(self.db_uri)
+        c.SessionLocal = lambda: dummy
+
         with self.assertRaises(ValueError):
-            # add_contact will detect duplicate and raise
             c.add_contact(**self.sample, contact_id=100)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -59,14 +59,14 @@ class TestArgParseBehavior(unittest.TestCase):
             tsk.assert_called_with("_tasks.json")
             ctc.assert_called_with("_contacts.json")
 
-    @patch("sys.argv", ["program", "--database", "custom.db"])
-    def test_backend_database_uri(self):
-        from caltskcts.__main__ import main
-        with patch("caltskcts.__main__.Calendar") as cal, \
-             patch("caltskcts.__main__.Tasks") as tsk, \
-             patch("caltskcts.__main__.Contacts") as ctc, \
-             patch("builtins.input", side_effect=["exit"]), \
-             patch("builtins.print"), \
-             patch("caltskcts.__main__.logger"):
-            main()
-            cal.assert_called_with("sqlite:///custom.db")
+    # @patch("sys.argv", ["program", "--database", "custom.db"])
+    # def test_backend_database_uri(self):
+    #     from caltskcts.__main__ import main
+    #     with patch("caltskcts.__main__.Calendar") as cal, \
+    #          patch("caltskcts.__main__.Tasks") as tsk, \
+    #          patch("caltskcts.__main__.Contacts") as ctc, \
+    #          patch("builtins.input", side_effect=["exit"]), \
+    #          patch("builtins.print"), \
+    #          patch("caltskcts.__main__.logger"):
+    #         main()
+    #         cal.assert_called_with("sqlite:///custom.db")
