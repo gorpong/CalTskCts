@@ -176,10 +176,10 @@ class TestContactsWithMocks(unittest.TestCase):
         """Test searching contacts with mocked state."""
         # Create mock contacts in the state
         self.contacts._state = {
-            "1": {"first_name": "John", "last_name": "Doe", "email": "john@example.com", "company": "TechCorp"},
-            "2": {"first_name": "Jane", "last_name": "Smith", "email": "jane@example.com", "company": "ProductCo"},
-            "3": {"first_name": "Robert", "last_name": "Johnson", "email": "robert@example.com", "company": "TechCorp"},
-            "4": {"first_name": "jennifer", "last_name": "williams", "email": "jennifer@example.com", "company": "Design Co"},
+            1: {"first_name": "John", "last_name": "Doe", "email": "john@example.com", "company": "TechCorp"},
+            2: {"first_name": "Jane", "last_name": "Smith", "email": "jane@example.com", "company": "ProductCo"},
+            3: {"first_name": "Robert", "last_name": "Johnson", "email": "robert@example.com", "company": "TechCorp"},
+            4: {"first_name": "jennifer", "last_name": "williams", "email": "jennifer@example.com", "company": "Design Co"},
         }
         
         # Test search with matching results

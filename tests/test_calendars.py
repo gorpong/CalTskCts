@@ -2,7 +2,7 @@ import os
 import tempfile
 import unittest
 
-from caltskcts.calendars import Calendar, EventData
+from caltskcts.calendars import Calendar
 
 class TestCalendar(unittest.TestCase):
     """Test suite for the Calendar class."""
