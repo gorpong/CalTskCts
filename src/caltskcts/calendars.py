@@ -10,7 +10,7 @@ from caltskcts.validation_utils import (
     validate_list_type
 )
 
-class CalendarORM(Base):
+class EventData(Base):
     __tablename__ = "calendars"
     
     id:       Mapped[int]       = mapped_column(Integer, primary_key=True)
@@ -19,10 +19,10 @@ class CalendarORM(Base):
     duration: Mapped[int]       = mapped_column(Integer, nullable=False)
     users:    Mapped[List[str]] = mapped_column(JSON, nullable=False)
 
-class Calendar(StateManagerBase[CalendarORM]):
+class Calendar(StateManagerBase[EventData]):
     """Manages calendar events and scheduling."""
     
-    Model = CalendarORM
+    Model = EventData
 
     def _validate_item(self, item: MutableMapping[str, Any]) -> bool:
         """

@@ -10,7 +10,7 @@ from caltskcts.validation_utils import (
     validate_enum_value
 )
 
-class TaskORM(Base):
+class TaskData(Base):
     __tablename__ = "tasks"
 
     id:       Mapped[int]            = mapped_column(Integer, primary_key=True)
@@ -20,10 +20,10 @@ class TaskORM(Base):
     progress: Mapped[float]          = mapped_column(Float,   nullable=False)
     state:    Mapped[str]            = mapped_column(String,  nullable=False)
     
-class Tasks(StateManagerBase[TaskORM]):
+class Tasks(StateManagerBase[TaskData]):
     """Manages tasks and their due dates, status, and completion progress."""
     
-    Model = TaskORM
+    Model = TaskData
     
     VALID_STATES = ["Not Started", "In Progress", "Completed", "On Hold", "Cancelled"]
     

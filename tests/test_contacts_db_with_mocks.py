@@ -4,7 +4,7 @@ import unittest
 from typing import Dict, Any
 from unittest.mock import patch
 
-from caltskcts.contacts import Contacts, ContactORM
+from caltskcts.contacts import Contacts, ContactData
 from caltskcts.state_manager import StateManagerBase
 
 class DummySession:
@@ -66,7 +66,7 @@ class TestContactsDBWithMocks(unittest.TestCase):
         # Verify exactly one object was added
         self.assertEqual(len(dummy.added), 1)
         inst = dummy.added[0]
-        self.assertIsInstance(inst, ContactORM)
+        self.assertIsInstance(inst, ContactData)
         self.assertEqual(inst.id, 42)
         for k, v in self.sample.items():
             self.assertEqual(getattr(inst, k), v)
@@ -76,7 +76,7 @@ class TestContactsDBWithMocks(unittest.TestCase):
 
     @patch.object(StateManagerBase, "_load_state_db")
     def test_update_contact_calls_session_commit(self, mock_load_db):
-        original = ContactORM(id=7, **self.sample)
+        original = ContactData(id=7, **self.sample)
         mock_load_db.return_value = {7: original}
 
         dummy = DummySession(store={7: original})
@@ -92,7 +92,7 @@ class TestContactsDBWithMocks(unittest.TestCase):
 
     @patch.object(StateManagerBase, "_load_state_db")
     def test_delete_contact_calls_session_delete_and_commit(self, mock_load_db):
-        inst5 = ContactORM(id=5, **self.sample)
+        inst5 = ContactData(id=5, **self.sample)
         mock_load_db.return_value = {5: inst5}
 
         dummy = DummySession(store={5: inst5})
@@ -105,7 +105,7 @@ class TestContactsDBWithMocks(unittest.TestCase):
         self.assertEqual(dummy.deleted, [inst5])
         self.assertEqual(dummy.commits, 1)
 
-    @patch.object(StateManagerBase, "_load_state_db", return_value={100: ContactORM(id=100, **{})})
+    @patch.object(StateManagerBase, "_load_state_db", return_value={100: ContactData(id=100, **{})})
     def test_add_duplicate_id_raises_value_error(self, _):
         dummy = DummySession()
         c = Contacts(self.db_uri)

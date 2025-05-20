@@ -9,7 +9,7 @@ from caltskcts.validation_utils import (
     validate_phone_format
 )
 
-class ContactORM(Base):
+class ContactData(Base):
     __tablename__ = "contacts"
     
     id:           Mapped[int]           = mapped_column(Integer, primary_key=True)
@@ -22,10 +22,10 @@ class ContactORM(Base):
     home_phone:   Mapped[Optional[str]] = mapped_column(String, nullable=True)
     email:        Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
-class Contacts(StateManagerBase[ContactORM]):
+class Contacts(StateManagerBase[ContactData]):
     """Manages lists of contacts and their information such as email, phone numbers, etc."""
 
-    Model = ContactORM   # tell the base which ORM class to use
+    Model = ContactData   # tell the base which ORM class to use
     
     def _validate_item(self, item: MutableMapping[str, Any]) -> bool:
         """
