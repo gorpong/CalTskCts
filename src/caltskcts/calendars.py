@@ -37,6 +37,7 @@ class Calendar(StateManagerBase[EventData]):
         Raises:
             ValueError: If validation fails
         """
+        self.logger.debug("Calling _validate_item")
         # Check required fields
         validate_required_fields(item, ["title"])
             
@@ -57,6 +58,7 @@ class Calendar(StateManagerBase[EventData]):
         if "users" in item:
             validate_list_type(item["users"], "Users")
             
+        self.logger.debug("Item validated")
         return True
 
     def add_event(

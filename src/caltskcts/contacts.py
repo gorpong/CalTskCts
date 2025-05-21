@@ -40,6 +40,7 @@ class Contacts(StateManagerBase[ContactData]):
         Raises:
             ValueError: If validation fails
         """
+        self.logger.debug("Calling _validate_item()")
         # Check required fields
         validate_required_fields(item, ["first_name", "last_name"])
         
@@ -58,6 +59,7 @@ class Contacts(StateManagerBase[ContactData]):
                 stripped = raw_value.strip()
                 validate_phone_format(stripped, field)
         
+        self.logger.debug("Item validated")
         return True
 
     def add_contact(

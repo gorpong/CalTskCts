@@ -40,6 +40,7 @@ class Tasks(StateManagerBase[TaskData]):
         Raises:
             ValueError: If validation fails
         """
+        self.logger.debug("Calling _validate_item")
         # Check required fields
         validate_required_fields(item, ["title"])
             
@@ -55,6 +56,7 @@ class Tasks(StateManagerBase[TaskData]):
         if "state" in item:
             validate_enum_value(item["state"], self.VALID_STATES, "state")
             
+        self.logger.debug("Item validated")
         return True
 
     def add_task(
