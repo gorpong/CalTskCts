@@ -105,12 +105,8 @@ class TestCalendar(unittest.TestCase):
             "users": "User1, User2"  # String instead of list
         }
         with self.assertRaises(ValueError) as context:
-            self._validate_helper(invalid_item)
+            self.calendar._validate_item(invalid_item)
         self.assertEqual(str(context.exception), "Users must be a list")
-    
-    def _validate_helper(self, item):
-        """Helper function to validate items, with better error handling."""
-        return self.calendar._validate_item(item)
     
     def test_add_event_basic(self):
         """Test adding a basic event."""
@@ -298,6 +294,30 @@ class TestCalendar(unittest.TestCase):
         for key in events.keys():
             self.assertIsInstance(key, int)
     
+    def test_list_and_findnext_empty_calendar(self):
+        """Tests with an empty calendar (list, find_next_available)"""
+        tf = tempfile.NamedTemporaryFile(delete=False)
+        path = tf.name
+        tf.close()
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+        
+        # Test list events with empty calendar
+        fresh = Calendar(path)
+        self.assertEqual(fresh.list_events(), {})
+        
+        # Test find_next_available with empty (should just return start)
+        start = "01/01/2023 09:00"
+        self.assertEqual(fresh.find_next_available(start, 30), start)
+        
+        # Cleanup
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
     def test_get_event(self):
         """Test retrieving a specific event by ID."""
         # Get an existing event
@@ -308,6 +328,149 @@ class TestCalendar(unittest.TestCase):
         # Try to get a non-existent event
         non_existent = self.calendar.get_event(999)
         self.assertIsNone(non_existent)
+
+    def test_get_events_between_with_partial_dates(self):
+        """Test getting events between dates when only dates (no times) are provided."""
+        # Only providing dates, not times
+        events = self.calendar.get_events_between("05/15/2023", "05/15/2023")
+        self.assertEqual(len(events), 2)
+        
+        # Providing partial date/times
+        events = self.calendar.get_events_between("05/15/2023", "05/15/2023 12:00")
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["title"], "Team Meeting")
+    
+    def test_find_next_available_with_overlapping_events(self):
+        """Test finding next available time with overlapping events."""
+
+        # Add several events
+        self.calendar.add_event(
+            title="Event 1",
+            date="01/01/2023 09:00",
+            duration=60,
+            users=["Alice"]
+        )
+        self.calendar.add_event(
+            title="Event 2",
+            date="01/01/2023 10:30",
+            duration=60,
+            users=["Bob"]
+        )
+        
+        # Should find slot between events
+        next_time = self.calendar.find_next_available("01/01/2023 08:00", 60)
+        self.assertEqual(next_time, "01/01/2023 08:00")
+        
+        # Starting during first event, should find time at end of first event
+        # THIS SHOULD BE CORRECT, but it isn't due to underlying issue in
+        # find_next_available where it skips over currently active meetings when
+        # you're requesting a next available slot AFTER it starts. Fix that
+        # code and then remove the @pytest.mark.xfail and this should work
+        next_time = self.calendar.find_next_available("01/01/2023 09:30", 30)
+        self.assertEqual(next_time, "01/01/2023 10:00") # SHOULD be 10, but
+        
+        # Not enough time between events for requested duration
+        next_time = self.calendar.find_next_available("01/01/2023 10:00", 60)
+        self.assertEqual(next_time, "01/01/2023 11:30")
+    
+    def test_validate_item_edge_cases(self):
+        """Test validation with edge cases for event data."""
+        # Title is a required field
+        invalid_item = {
+            "date": "05/15/2023 09:00",
+            "duration": 60,
+            "users": []
+        }
+        with self.assertRaises(ValueError):
+            self.calendar._validate_item(invalid_item)
+        
+        # Test with minimum valid values
+        valid_item = {
+            "title": "Minimal Event",
+            "date": "01/01/2023 00:00",
+            "duration": 1,
+            "users": []
+        }
+        self.assertTrue(self.calendar._validate_item(valid_item))
+        
+        # Test with missing optional fields
+        partial_item = {
+            "title": "Partial Event"
+        }
+        # This should pass as other fields are optional
+        self.assertTrue(self.calendar._validate_item(partial_item))
+    
+    def test_add_event_with_unicode_characters(self):
+        """Test adding an event with Unicode characters in the title."""
+        result = self.calendar.add_event(
+            title="Café Meeting ☕",
+            date="05/15/2023 09:00",
+            duration=60,
+            users=["José", "François"]
+        )
+        self.assertIn("Added", result)
+        
+        events = self.calendar.list_events()
+        self.assertEqual(len(events), 4)  # 3 from setUp + 1 new one
+        event_id = 4  # Since we already have 3 events from setUp
+        event = self.calendar.get_event(event_id)
+
+        # Retrieve the event and check its properties
+        self.assertEqual(event["title"], "Café Meeting ☕")
+        self.assertEqual(event["users"], ["José", "François"])
+    
+    def test_state_file_persistence(self):
+        """Test that calendar state is persisted to file."""
+        # Add an event
+        self.calendar.add_event(
+            title="Persistent Event",
+            date="05/15/2023 09:00",
+            duration=60,
+            event_id=100,
+            users=["User1"]
+        )
+        
+        # Create a new calendar instance that reads from the same file
+        new_calendar = Calendar(self.temp_file_path)
+        
+        # Verify the event was loaded
+        event = new_calendar.get_event(100)
+        self.assertIsNotNone(event)
+        self.assertEqual(event["title"], "Persistent Event")
+    
+    def test_add_event_with_no_users(self):
+        """Test adding an event with an empty users list."""
+        result = self.calendar.add_event(
+            title="Solo Event",
+            date="05/15/2023 09:00",
+            duration=60,
+            users=[]
+        )
+        self.assertIn("Added", result)
+
+        events = self.calendar.list_events()
+        self.assertEqual(len(events), 4)  # 3 from setUp + 1 new one
+        event_id = 4  # Since we already have 3 events from setUp
+        event = self.calendar.get_event(event_id)
+        self.assertEqual(event["users"], [])
+        
+    def test_add_event_duration_edge_cases(self):
+        """Test adding events with edge case durations."""
+        # Minimum duration
+        result = self.calendar.add_event(
+            title="Very Short Event",
+            date="05/15/2023 09:00",
+            duration=1  # 1 minute
+        )
+        self.assertIn("Added", result)
+        
+        # Very long duration
+        result = self.calendar.add_event(
+            title="Very Long Event",
+            date="05/15/2023 10:00",
+            duration=1440  # 24 hours
+        )
+        self.assertIn("Added", result)
 
 
 if __name__ == "__main__":
