@@ -95,9 +95,6 @@ class Calendar(StateManagerBase[EventData]):
             "users": users or []
         }
         
-        # Validate before adding
-        self._validate_item(event_data)
-        
         if self.add_item(event_id, event_data): # type: ignore
             return f"Event {event_id} Added"
         else:
@@ -137,10 +134,6 @@ class Calendar(StateManagerBase[EventData]):
             "duration": duration,
             "users": users
         }.items() if v is not None}
-        
-        # Create merged data for validation
-        merged_data: Dict[str, Any] = {**current_data, **updates}
-        self._validate_item(merged_data)
         
         if self.update_item(event_id, updates): # type: ignore
             return f"Event {event_id} updated"

@@ -108,9 +108,6 @@ class Contacts(StateManagerBase[ContactData]):
             "email": email,
         }
         
-        # Validate data before adding
-        self._validate_item(contact_data)
-        
         if self.add_item(contact_id, contact_data): # type: ignore
             return f"Contact {contact_id} added"
         else:
@@ -165,10 +162,6 @@ class Contacts(StateManagerBase[ContactData]):
                 "email": email,
             }.items() if v is not None
         }
-        
-       # Create merged data for validation
-        merged_data: Dict[str, Any] = {**current_data, **updates}
-        self._validate_item(merged_data)
         
         if self.update_item(contact_id, updates): # type: ignore
             return f"Contact {contact_id} updated"

@@ -96,9 +96,6 @@ class Tasks(StateManagerBase[TaskData]):
             "state": state,
         }
         
-        # Validate before adding
-        self._validate_item(task_data)
-        
         if self.add_item(task_id, task_data): # type: ignore
             return f"Task {task_id} added"
         else:
@@ -153,10 +150,6 @@ class Tasks(StateManagerBase[TaskData]):
             if state == "Completed":
                 updates["progress"] = 100.0
                 
-        # Create merged data for validation
-        merged_data: MutableMapping[str, Any] = {**current_data, **updates}
-        self._validate_item(merged_data)
-
         if self.update_item(task_id, updates): # type: ignore
             return f"Task {task_id} updated"
         else:
