@@ -3,6 +3,7 @@ import re
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Type, TypeVar, Generic
 from datetime import date, datetime
+from filelock import FileLock, Timeout
 
 from sqlalchemy import create_engine, Date, DateTime
 from sqlalchemy.orm import declarative_base, sessionmaker, DeclarativeMeta
@@ -52,6 +53,12 @@ class StateManagerBase(ABC, Generic[ModelType]):
         """ Alias for the old file-based loader, or DB loader if using SQL. """
         return self._load_state_db() if self._use_db else self._load_state_file()
 
+    def _save_state(self) -> None:
+        """ Alias for the old file-base saver; no-op for DB (per-record save). """
+        if self._use_db:
+            return
+        return self._save_state_file()
+
     def _load_state_db(self) -> Dict[int, Any]:
         """Load all rows from the database into the in‐memory dict."""
         state: Dict[int, Any] = {}
@@ -67,44 +74,114 @@ class StateManagerBase(ABC, Generic[ModelType]):
 
     def _load_state_file(self) -> Dict[int, Any]:
         """
-        Load state from the state file.
-        
-        Returns:
-            Dict containing the loaded state or an empty dict if file doesn't exist
+        Concurrency-safe load: acquire a filesystem lock, read the JSON (or
+        fall back to empty), convert keys to ints, and return the dict.
         """
         state: Dict[int, Any] = {}
+        lock = FileLock(self.state_file + ".lock", timeout=2)
         try:
-            with open(self.state_file, 'r') as f:
-                data = json.load(f)
-            # convert keys to int
-            state = {int(k): v for k, v in data.items()}
-            self.logger.info(f"Loaded {len(state)} items from JSON file '{self.state_file}'")
-        except FileNotFoundError:
-            self.logger.warning(f"State file not found: {self.state_file}. Using empty state.")
-        except json.JSONDecodeError as e:
-            log_exception(e, f"Error parsing JSON file: {self.state_file}")
+            with lock:
+                try:
+                    with open(self.state_file, "r") as f:
+                        data = json.load(f)
+                except FileNotFoundError:
+                    self.logger.warning(f"State file not found: {self.state_file}. Using empty state.")
+                    data = {}
+                except json.JSONDecodeError as e:
+                    log_exception(e, f"Error parsing JSON file: {self.state_file}")
+                    data: Dict[str, Any] = {}
+                # convert string keys back to ints
+                state = {int(k): v for k, v in data.items()}
+                self.logger.info(f"Loaded {len(state)} items from JSON file '{self.state_file}'")
+        except Timeout:
+            self.logger.error(f"Could not acquire lock for reading {self.state_file}")
         return state
-        
-    def _save_state(self) -> None:
-        """ Alias for the old file-base saver; no-op for DB (per-record save). """
-        if self._use_db:
-            return
-        return self._save_state_file()
 
     def _save_state_file(self) -> None:
         """
-        Persist state to JSON file (file backend only).
+        Concurrency-safe save: acquire a filesystem lock, read any existing JSON,
+        merge in self._state, and write the combined dict back out.
         """
+        lock = FileLock(self.state_file + ".lock", timeout=2)
         try:
-            # convert keys to string for JSON
-            data = {str(k): v for k, v in self._state.items()}
-            with open(self.state_file, 'w') as f:
-                json.dump(data, f, indent=4)
+            with lock:
+                # read existing file so we don't clobber others' writes
+                try:
+                    with open(self.state_file, "r") as f:
+                        existing = json.load(f)
+                except (FileNotFoundError, json.JSONDecodeError):
+                    existing = {}
+                    
+                # Snapshot in-memory state right now
+                snapshot = {str(k): v for k, v in self._state.items()}
+                
+                # merge snapshot into existing from disk
+                existing.update(snapshot) # type: ignore
+
+                # write out full merged state
+                with open(self.state_file, "w") as f:
+                    json.dump(existing, f, indent=4)
+                
+                # reflect that merged state back into current
+                self._state = {int(k): v for k, v in existing.items()}
+                
+        except Timeout:
+            self.logger.error(f"Could not acquire lock for writing {self.state_file}")
+            raise
         except Exception as e:
             log_exception(e, f"Failed to save state to {self.state_file}")
             raise
+        
+    def _save_one_file(self, item_id: int, item_data: Any) -> None:
+        """Insert or update a single record in the JSON file, under lock."""
+        lock = FileLock(self.state_file + ".lock", timeout=2)
+        try:
+            with lock:
+                try:
+                    with open(self.state_file, "r") as f:
+                        data = json.load(f)
+                except (FileNotFoundError, json.JSONDecodeError):
+                    data = {}
 
+                data[str(item_id)] = item_data
+                with open(self.state_file, "w") as f:
+                    json.dump(data, f, indent=4)
 
+                # reflect back into memory
+                self._state = {int(k): v for k, v in data.items()}
+
+        except Timeout:
+            self.logger.error(f"Could not acquire lock for writing {self.state_file}")
+            raise
+        except Exception as e:
+            log_exception(e, f"Failed to save one record to {self.state_file}")
+            raise
+    
+    def _delete_one_file(self, item_id: int) -> None:
+        """Delete a single record from the JSON file, under lock."""
+        lock = FileLock(self.state_file + ".lock", timeout=2)
+        try:
+            with lock:
+                try:
+                    with open(self.state_file, "r") as f:
+                        data = json.load(f)
+                except (FileNotFoundError, json.JSONDecodeError):
+                    data = {}
+
+                data.pop(str(item_id), None) # type: ignore
+                with open(self.state_file, "w") as f:
+                    json.dump(data, f, indent=4)
+
+                # reflect back into memory
+                self._state = {int(k): v for k, v in data.items()}
+
+        except Timeout:
+            self.logger.error(f"Could not acquire lock for writing {self.state_file}")
+            raise
+        except Exception as e:
+            log_exception(e, f"Failed to delete one record from {self.state_file}")
+            raise
+        
     # ----------------------
     # Shared CRUD entry points
     # ----------------------
@@ -216,7 +293,7 @@ class StateManagerBase(ABC, Generic[ModelType]):
                 return False
         else:
             self._state[item_id] = item_data
-            self._save_state_file()
+            self._save_one_file(item_id, item_data)
         self.logger.info(f"Added item with ID {item_id}")
         return True
 
@@ -275,7 +352,7 @@ class StateManagerBase(ABC, Generic[ModelType]):
             new_data = {**self._state[item_id], **updates} # type: ignore
             self._validate_item(new_data)
             self._state[item_id].update(updates)
-            self._save_state_file()
+            self._save_one_file(item_id, self._state[item_id])
             return True
 
     def delete_item(self, item_id: int) -> bool:
@@ -305,7 +382,7 @@ class StateManagerBase(ABC, Generic[ModelType]):
                 return False
         else:
             del self._state[item_id]
-            self._save_state_file()
+            self._delete_one_file(item_id)
             return True
 
     def search_items(self, query: str, fields: List[str]) -> List[Dict[str, Any]]:
