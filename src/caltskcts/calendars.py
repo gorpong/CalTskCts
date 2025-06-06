@@ -2,13 +2,9 @@ from typing import Dict, List, Optional, Any, MutableMapping, Tuple
 from datetime import datetime, timedelta
 from sqlalchemy import Integer, String, DateTime, JSON
 from sqlalchemy.orm import Mapped, mapped_column
+from pydantic import ValidationError
 from caltskcts.state_manager import Base, StateManagerBase
-from caltskcts.validation_utils import (
-    validate_required_fields,
-    validate_date_format,
-    validate_numeric_range,
-    validate_list_type
-)
+from caltskcts.schemas import EventModel
 
 class EventData(Base):
     __tablename__ = "calendars"
@@ -26,7 +22,7 @@ class Calendar(StateManagerBase[EventData]):
 
     def _validate_item(self, item: MutableMapping[str, Any]) -> bool:
         """
-        Validate event data before adding/updating.
+        Validate event data before adding/updating. Uses Pydantic for validation
         
         Args:
             item: Event data to validate
@@ -38,26 +34,10 @@ class Calendar(StateManagerBase[EventData]):
             ValueError: If validation fails
         """
         self.logger.debug("Calling _validate_item")
-        # Check required fields
-        validate_required_fields(item, ["title"])
-            
-        # Validate date and time format if present
-        if "date" in item:
-            validate_date_format(item["date"], "%m/%d/%Y %H:%M")
-        
-        # Validate duration if present
-        if "duration" in item:
-            validate_numeric_range(
-                value = item["duration"],
-                field_name = "Duration", 
-                min_value = 1, 
-                numeric_type = int
-            )
-        
-        # Validate users list if present
-        if "users" in item:
-            validate_list_type(item["users"], "Users")
-            
+        try:
+            EventModel(**item)
+        except ValidationError as ve:
+            raise ValueError(str(ve))
         self.logger.debug("Item validated")
         return True
 
@@ -95,7 +75,7 @@ class Calendar(StateManagerBase[EventData]):
             "users": users or []
         }
         
-        if self.add_item(event_id, event_data): # type: ignore
+        if self.add_item(event_id, event_data):
             return f"Event {event_id} Added"
         else:
             raise ValueError(f"Event with ID {event_id} already exists.")
@@ -128,14 +108,18 @@ class Calendar(StateManagerBase[EventData]):
         if not current_data:
             raise ValueError(f"Event with ID {event_id} does not exist.")
             
-        updates: MutableMapping[str, Any] = {k: v for k, v in { # type: ignore
-            "title": title,
-            "date": date,
-            "duration": duration,
-            "users": users
-        }.items() if v is not None}
-        
-        if self.update_item(event_id, updates): # type: ignore
+        updates: MutableMapping[str, Any] = {
+            k: v 
+            for k, v in { # type: ignore
+                "title": title,
+                "date": date,
+                "duration": duration,
+                "users": users
+            }.items()
+            if v is not None
+        }
+
+        if self.update_item(event_id, updates):
             return f"Event {event_id} updated"
         else:
             raise ValueError(f"Failed to update event {event_id}")

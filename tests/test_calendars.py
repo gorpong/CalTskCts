@@ -63,7 +63,9 @@ class TestCalendar(unittest.TestCase):
         }
         with self.assertRaises(ValueError) as context:
             self.calendar._validate_item(invalid_item)
-        self.assertEqual(str(context.exception), "Missing required field: title")
+        msg = str(context.exception)
+        self.assertIn("validation error", msg)
+        self.assertIn("Field required", msg)
     
     def test_validate_item_invalid_date_format(self):
         """Test validation of event data with invalid date format."""
@@ -75,7 +77,7 @@ class TestCalendar(unittest.TestCase):
         }
         with self.assertRaises(ValueError) as context:
             self.calendar._validate_item(invalid_item)
-        self.assertEqual(str(context.exception), "Invalid date format. Use MM/DD/YYYY HH:MM")
+        self.assertIn("Invalid date format. Use MM/DD/YYYY HH:MM", str(context.exception))
     
     def test_validate_item_invalid_duration(self):
         """Test validation of event data with invalid duration."""
@@ -88,13 +90,17 @@ class TestCalendar(unittest.TestCase):
         }
         with self.assertRaises(ValueError) as context:
             self.calendar._validate_item(invalid_item)
-        self.assertEqual(str(context.exception), "Duration must be a number larger than 1")
+        msg = str(context.exception)
+        self.assertIn("validation error", msg)
+        self.assertIn("greater than 0", msg)
         
         # Test with non-integer duration
         invalid_item["duration"] = "60 minutes"
         with self.assertRaises(ValueError) as context:
             self.calendar._validate_item(invalid_item)
-        self.assertEqual(str(context.exception), "Duration must be a number")
+        msg = str(context.exception)
+        self.assertIn("validation error", msg)
+        self.assertIn("valid integer", msg)
     
     def test_validate_item_invalid_users(self):
         """Test validation of event data with invalid users list."""
@@ -106,7 +112,9 @@ class TestCalendar(unittest.TestCase):
         }
         with self.assertRaises(ValueError) as context:
             self.calendar._validate_item(invalid_item)
-        self.assertEqual(str(context.exception), "Users must be a list")
+        msg = str(context.exception)
+        self.assertIn("validation error", msg)
+        self.assertIn("be a valid list", msg)
     
     def test_add_event_basic(self):
         """Test adding a basic event."""
@@ -214,7 +222,7 @@ class TestCalendar(unittest.TestCase):
                 event_id=1,
                 date="invalid-date"
             )
-        self.assertEqual(str(context.exception), "Invalid date format. Use MM/DD/YYYY HH:MM")
+        self.assertIn("Invalid date format. Use MM/DD/YYYY HH:MM", str(context.exception))
     
     def test_delete_event(self):
         """Test deleting an event."""
@@ -361,15 +369,9 @@ class TestCalendar(unittest.TestCase):
         next_time = self.calendar.find_next_available("01/01/2023 08:00", 60)
         self.assertEqual(next_time, "01/01/2023 08:00")
         
-        # Starting during first event, should find time at end of first event
-        # THIS SHOULD BE CORRECT, but it isn't due to underlying issue in
-        # find_next_available where it skips over currently active meetings when
-        # you're requesting a next available slot AFTER it starts. Fix that
-        # code and then remove the @pytest.mark.xfail and this should work
         next_time = self.calendar.find_next_available("01/01/2023 09:30", 30)
-        self.assertEqual(next_time, "01/01/2023 10:00") # SHOULD be 10, but
+        self.assertEqual(next_time, "01/01/2023 10:00")
         
-        # Not enough time between events for requested duration
         next_time = self.calendar.find_next_available("01/01/2023 10:00", 60)
         self.assertEqual(next_time, "01/01/2023 11:30")
     
@@ -397,7 +399,6 @@ class TestCalendar(unittest.TestCase):
         partial_item = {
             "title": "Partial Event"
         }
-        # This should pass as other fields are optional
         self.assertTrue(self.calendar._validate_item(partial_item))
     
     def test_add_event_with_unicode_characters(self):

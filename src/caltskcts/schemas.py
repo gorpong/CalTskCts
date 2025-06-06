@@ -1,5 +1,3 @@
-# src/caltskcts/schemas.py
-
 from pydantic import (
     BaseModel,
     Field,
@@ -23,16 +21,15 @@ EmailSimple = constr(
 )
 
 class ContactModel(BaseModel):
-    first_name: constr(min_length=1, strip_whitespace=True)
-    last_name:  constr(min_length=1, strip_whitespace=True)
-    title:      Optional[str] = None
-    company:    Optional[str] = None
+    first_name:   constr(min_length=1, strip_whitespace=True) # type: ignore
+    last_name:    constr(min_length=1, strip_whitespace=True) # type: ignore
+    title:        Optional[str] = None
+    company:      Optional[str] = None
+    work_phone:   Optional[PhoneStr] = None # type: ignore
+    mobile_phone: Optional[PhoneStr] = None # type: ignore
+    home_phone:   Optional[PhoneStr] = None # type: ignore
 
-    work_phone:   Optional[PhoneStr] = None
-    mobile_phone: Optional[PhoneStr] = None
-    home_phone:   Optional[PhoneStr] = None
-
-    email: Optional[EmailSimple] = None
+    email: Optional[EmailSimple] = None # type: ignore
 
     model_config = ConfigDict(
         str_strip_whitespace=True,
@@ -41,7 +38,7 @@ class ContactModel(BaseModel):
 
     @field_validator("work_phone", "mobile_phone", "home_phone", mode="before")
     @classmethod
-    def check_phone_digits(cls, v, info):
+    def check_phone_digits(cls, v, info) -> str:
         """
         If a phone string is provided (already matched PhoneStr's pattern),
         ensure it has 7-15 digits once non-digits are stripped.
@@ -56,7 +53,7 @@ class ContactModel(BaseModel):
 
     @field_validator("email", mode="before")
     @classmethod
-    def check_email_basic(cls, v, info):
+    def check_email_basic(cls, v, info) -> str:
         """
         If an email string is provided, ensure it matches the simple regex.
         (The EmailSimple constr above already enforces the same pattern,
@@ -70,10 +67,10 @@ class ContactModel(BaseModel):
 # --- Calendar/Event schema ---
 
 class EventModel(BaseModel):
-    title: constr(min_length=1, strip_whitespace=True)
-    date: datetime                     # Pydantic will parse via validator
-    duration: conint(strict=True, gt=0)  # positive integer
-    users: List[constr(min_length=1, strip_whitespace=True)]  # list of non‐empty strings
+    title:    constr(min_length=1, strip_whitespace=True)
+    date:     Optional[datetime] = None
+    duration: Optional[conint(strict=True, gt=0)] = None
+    users:    Optional[List[constr(min_length=1, strip_whitespace=True)]] = None
 
     model_config = ConfigDict(
         str_strip_whitespace=True,
@@ -82,7 +79,7 @@ class EventModel(BaseModel):
 
     @field_validator("date", mode="before")
     @classmethod
-    def parse_date_string(cls, v):
+    def parse_date_string(cls, v) -> datetime:
         if isinstance(v, str):
             try:
                 return datetime.strptime(v, "%m/%d/%Y %H:%M")
@@ -92,24 +89,15 @@ class EventModel(BaseModel):
             return v
         raise ValueError("Invalid date type; must be string or datetime")
 
-    @model_validator(mode="after")
-    @classmethod
-    def format_date_output(cls, values):
-        # Convert the 'date' back into the same string format when serialized
-        date_obj = values.get("date")
-        if isinstance(date_obj, datetime):
-            values["date"] = date_obj.strftime("%m/%d/%Y %H:%M")
-        return values
-
 
 # --- Task schema ---
 
 class TaskModel(BaseModel):
-    title: constr(min_length=1, strip_whitespace=True)
-    desc: Optional[str] = None
-    dueDate: date                      # Pydantic will parse via validator
-    progress: conint(ge=0, le=100)     # integer 0–100
-    state: constr(min_length=1, strip_whitespace=True)
+    title:    constr(min_length=1, strip_whitespace=True) # type: ignore
+    desc:     Optional[str] = None
+    dueDate:  date                      # Pydantic will parse via validator
+    progress: conint(ge=0, le=100)     # type: ignore # integer 0–100
+    state:    constr(min_length=1, strip_whitespace=True) # type: ignore
 
     model_config = ConfigDict(
         str_strip_whitespace=True,
@@ -118,7 +106,7 @@ class TaskModel(BaseModel):
 
     @field_validator("dueDate", mode="before")
     @classmethod
-    def parse_due_date_string(cls, v):
+    def parse_due_date_string(cls, v) -> date:
         if isinstance(v, str):
             try:
                 return datetime.strptime(v, "%m/%d/%Y").date()
@@ -132,7 +120,7 @@ class TaskModel(BaseModel):
     @classmethod
     def sync_progress_state(cls, values):
         """
-        Enforce or auto‐fill the relationship:
+        Enforce or auto-fill the relationship:
           - If both 'progress' and 'state' provided → ensure consistency.
           - If only one provided → set the other appropriately when needed.
         """

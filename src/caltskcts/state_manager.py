@@ -59,6 +59,10 @@ class StateManagerBase(ABC, Generic[ModelType]):
             return
         return self._save_state_file()
 
+    # =========================
+    # DB-related save/load
+    # =========================
+    
     def _load_state_db(self) -> Dict[int, Any]:
         """Load all rows from the database into the in‐memory dict."""
         state: Dict[int, Any] = {}
@@ -71,6 +75,21 @@ class StateManagerBase(ABC, Generic[ModelType]):
             log_exception(e, "Failed to load state from DB")
             state = {}
         return state
+
+    # =========================
+    # File-related save/load
+    # =========================
+    
+    def _json_default(self, obj: Any) -> Any:
+        """
+        JSON serializer fallback: converts date/datetime
+        into the required MM/DD/YYYY[ HH:MM] strings.
+        """
+        if isinstance(obj, datetime):
+            return obj.strftime("%m/%d/%Y %H:%M")
+        if isinstance(obj, date):
+            return obj.strftime("%m/%d/%Y")
+        raise TypeError(f"Type {type(obj)} not serializable")
 
     def _load_state_file(self) -> Dict[int, Any]:
         """
@@ -120,10 +139,10 @@ class StateManagerBase(ABC, Generic[ModelType]):
 
                 # write out full merged state
                 with open(self.state_file, "w") as f:
-                    json.dump(existing, f, indent=4)
+                    json.dump(existing, f, indent=4, default=self._json_default)
                 
                 # reflect that merged state back into current
-                self._state = {int(k): v for k, v in existing.items()}
+                self._state = {int(k): v for k, v in existing.items()}  # type: ignore
                 
         except Timeout:
             self.logger.error(f"Could not acquire lock for writing {self.state_file}")
@@ -145,10 +164,10 @@ class StateManagerBase(ABC, Generic[ModelType]):
 
                 data[str(item_id)] = item_data
                 with open(self.state_file, "w") as f:
-                    json.dump(data, f, indent=4)
+                    json.dump(data, f, indent=4, default=self._json_default)
 
                 # reflect back into memory
-                self._state = {int(k): v for k, v in data.items()}
+                self._state = {int(k): v for k, v in data.items()} # type: ignore
 
         except Timeout:
             self.logger.error(f"Could not acquire lock for writing {self.state_file}")
@@ -170,10 +189,10 @@ class StateManagerBase(ABC, Generic[ModelType]):
 
                 data.pop(str(item_id), None) # type: ignore
                 with open(self.state_file, "w") as f:
-                    json.dump(data, f, indent=4)
+                    json.dump(data, f, indent=4, default=self._json_default)
 
                 # reflect back into memory
-                self._state = {int(k): v for k, v in data.items()}
+                self._state = {int(k): v for k, v in data.items()} # type: ignore
 
         except Timeout:
             self.logger.error(f"Could not acquire lock for writing {self.state_file}")
