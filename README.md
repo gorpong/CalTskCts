@@ -63,7 +63,7 @@ CalTskCts
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
-3. **Install dependencies:***
+3. **Install dependencies:**
 
    ```bash
    pip install -r requirements.txt
@@ -128,6 +128,15 @@ If you have `pytest` installed, run your tests with:
 ```bash
 pytest
 ```
+## Running a Docker Container
+
+If you want to build this into a docker container, and a Dockerfile exists where you got this code from, then you should build it appropriately and then you can run it via:
+
+```bash
+docker run -it <imagename> caltskcts <arguments, see above>
+```
+
+That will launch the docker container that had the `pip install -e .` already done as part of the `docker build` step.
 
 ## Requirements
 
