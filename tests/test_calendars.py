@@ -1,5 +1,6 @@
 import os
 import tempfile
+from typing import Any, Dict, MutableMapping
 import unittest
 
 from caltskcts.calendars import Calendar
@@ -46,50 +47,50 @@ class TestCalendar(unittest.TestCase):
     
     def test_validate_item_valid_data(self):
         """Test validation of event data with valid input."""
-        valid_item = {
+        valid_item: MutableMapping[str, Any] = {
             "title": "Test Event",
             "date": "12/31/2023 10:00",
             "duration": 60,
             "users": ["User1", "User2"]
         }
-        self.assertTrue(self.calendar._validate_item(valid_item))
+        self.assertTrue(self.calendar._validate_item(valid_item)) # type: ignore
     
     def test_validate_item_missing_title(self):
         """Test validation of event data with missing title."""
-        invalid_item = {
+        invalid_item: MutableMapping[str, Any] = {
             "date": "12/31/2023 10:00",
             "duration": 60,
             "users": ["User1", "User2"]
         }
         with self.assertRaises(ValueError) as context:
-            self.calendar._validate_item(invalid_item)
+            self.calendar._validate_item(invalid_item) # type: ignore
         msg = str(context.exception)
         self.assertIn("validation error", msg)
         self.assertIn("Field required", msg)
     
     def test_validate_item_invalid_date_format(self):
         """Test validation of event data with invalid date format."""
-        invalid_item = {
+        invalid_item: MutableMapping[str, Any] = {
             "title": "Test Event",
             "date": "2023-12-31 10:00",  # Wrong format
             "duration": 60,
             "users": ["User1", "User2"]
         }
         with self.assertRaises(ValueError) as context:
-            self.calendar._validate_item(invalid_item)
+            self.calendar._validate_item(invalid_item) # type: ignore
         self.assertIn("Invalid date format. Use MM/DD/YYYY HH:MM", str(context.exception))
     
     def test_validate_item_invalid_duration(self):
         """Test validation of event data with invalid duration."""
         # Test with negative duration
-        invalid_item = {
+        invalid_item: MutableMapping[str, Any] = {
             "title": "Test Event",
             "date": "12/31/2023 10:00",
             "duration": -30,
             "users": ["User1", "User2"]
         }
         with self.assertRaises(ValueError) as context:
-            self.calendar._validate_item(invalid_item)
+            self.calendar._validate_item(invalid_item) # type: ignore
         msg = str(context.exception)
         self.assertIn("validation error", msg)
         self.assertIn("greater than 0", msg)
@@ -97,21 +98,21 @@ class TestCalendar(unittest.TestCase):
         # Test with non-integer duration
         invalid_item["duration"] = "60 minutes"
         with self.assertRaises(ValueError) as context:
-            self.calendar._validate_item(invalid_item)
+            self.calendar._validate_item(invalid_item) # type: ignore
         msg = str(context.exception)
         self.assertIn("validation error", msg)
         self.assertIn("valid integer", msg)
     
     def test_validate_item_invalid_users(self):
         """Test validation of event data with invalid users list."""
-        invalid_item = {
+        invalid_item: MutableMapping[str, Any] = {
             "title": "Test Event",
             "date": "12/31/2023 10:00",
             "duration": 60,
             "users": "User1, User2"  # String instead of list
         }
         with self.assertRaises(ValueError) as context:
-            self.calendar._validate_item(invalid_item)
+            self.calendar._validate_item(invalid_item) # type: ignore
         msg = str(context.exception)
         self.assertIn("validation error", msg)
         self.assertIn("be a valid list", msg)
@@ -132,7 +133,7 @@ class TestCalendar(unittest.TestCase):
         
         # Retrieve the event and check its properties
         event_id = 4  # Since we already have 3 events from setUp
-        event = self.calendar.get_event(event_id)
+        event: Dict[str, Any]  = self.calendar.get_event(event_id)
         self.assertEqual(event["title"], "New Event")
         self.assertEqual(event["date"], "05/25/2023 10:00")
         self.assertEqual(event["duration"], 45)
@@ -150,7 +151,7 @@ class TestCalendar(unittest.TestCase):
         self.assertIn("Added", result)
         
         # Verify event was added with the custom ID
-        event = self.calendar.get_event(100)
+        event: Dict[str, Any] = self.calendar.get_event(100)
         self.assertIsNotNone(event)
         self.assertEqual(event["title"], "Custom ID Event")
     
@@ -169,7 +170,7 @@ class TestCalendar(unittest.TestCase):
     def test_update_event_basic(self):
         """Test updating an existing event."""
         # First get the original event
-        original_event = self.calendar.get_event(1)
+        original_event: Dict[str, Any] = self.calendar.get_event(1)
         self.assertEqual(original_event["title"], "Team Meeting")
         
         # Update the event
@@ -183,7 +184,7 @@ class TestCalendar(unittest.TestCase):
         self.assertIn("updated", result.lower())
         
         # Verify the event was updated
-        updated_event = self.calendar.get_event(1)
+        updated_event: Dict[str, Any] = self.calendar.get_event(1)
         self.assertEqual(updated_event["title"], "Updated Meeting")
         self.assertEqual(updated_event["date"], "05/16/2023 09:30")
         self.assertEqual(updated_event["duration"], 90)
@@ -200,7 +201,7 @@ class TestCalendar(unittest.TestCase):
         self.assertIn("updated", result.lower())
         
         # Verify only specified fields were updated
-        updated_event = self.calendar.get_event(2)
+        updated_event: Dict[str, Any] = self.calendar.get_event(2)
         self.assertEqual(updated_event["title"], "Updated Client Call")
         self.assertEqual(updated_event["duration"], 45)
         self.assertEqual(updated_event["date"], "05/15/2023 14:00")  # Unchanged
@@ -329,7 +330,7 @@ class TestCalendar(unittest.TestCase):
     def test_get_event(self):
         """Test retrieving a specific event by ID."""
         # Get an existing event
-        event = self.calendar.get_event(1)
+        event: Dict[str, Any] = self.calendar.get_event(1)
         self.assertIsNotNone(event)
         self.assertEqual(event["title"], "Team Meeting")
         
@@ -378,28 +379,28 @@ class TestCalendar(unittest.TestCase):
     def test_validate_item_edge_cases(self):
         """Test validation with edge cases for event data."""
         # Title is a required field
-        invalid_item = {
+        invalid_item: Dict[str, Any] = {
             "date": "05/15/2023 09:00",
             "duration": 60,
             "users": []
         }
         with self.assertRaises(ValueError):
-            self.calendar._validate_item(invalid_item)
+            self.calendar._validate_item(invalid_item) # type: ignore
         
         # Test with minimum valid values
-        valid_item = {
+        valid_item: Dict[str, Any] = {
             "title": "Minimal Event",
             "date": "01/01/2023 00:00",
             "duration": 1,
             "users": []
         }
-        self.assertTrue(self.calendar._validate_item(valid_item))
+        self.assertTrue(self.calendar._validate_item(valid_item)) # type: ignore
         
         # Test with missing optional fields
         partial_item = {
             "title": "Partial Event"
         }
-        self.assertTrue(self.calendar._validate_item(partial_item))
+        self.assertTrue(self.calendar._validate_item(partial_item)) # type: ignore
     
     def test_add_event_with_unicode_characters(self):
         """Test adding an event with Unicode characters in the title."""
@@ -414,7 +415,7 @@ class TestCalendar(unittest.TestCase):
         events = self.calendar.list_events()
         self.assertEqual(len(events), 4)  # 3 from setUp + 1 new one
         event_id = 4  # Since we already have 3 events from setUp
-        event = self.calendar.get_event(event_id)
+        event: Dict[str, Any] = self.calendar.get_event(event_id)
 
         # Retrieve the event and check its properties
         self.assertEqual(event["title"], "Café Meeting ☕")
@@ -435,7 +436,7 @@ class TestCalendar(unittest.TestCase):
         new_calendar = Calendar(self.temp_file_path)
         
         # Verify the event was loaded
-        event = new_calendar.get_event(100)
+        event: Dict[str, Any] = new_calendar.get_event(100)
         self.assertIsNotNone(event)
         self.assertEqual(event["title"], "Persistent Event")
     
@@ -452,7 +453,7 @@ class TestCalendar(unittest.TestCase):
         events = self.calendar.list_events()
         self.assertEqual(len(events), 4)  # 3 from setUp + 1 new one
         event_id = 4  # Since we already have 3 events from setUp
-        event = self.calendar.get_event(event_id)
+        event: Dict[str, Any] = self.calendar.get_event(event_id)
         self.assertEqual(event["users"], [])
         
     def test_add_event_duration_edge_cases(self):

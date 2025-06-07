@@ -215,7 +215,7 @@ class StateManagerBase(ABC, Generic[ModelType]):
             return 1
         return max(int(k) for k in self._state) + 1
 
-    def get_item(self, item_id: int) -> Optional[Any]:
+    def get_item(self, item_id: int) -> Optional[Dict[str, Any]]:
         """
         Get an item by its ID.
         

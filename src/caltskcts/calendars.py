@@ -231,7 +231,7 @@ class Calendar(StateManagerBase[EventData]):
         """
         return self.list_items()
 
-    def get_event(self, event_id: int) -> Optional[Dict[int, Any]]:
+    def get_event(self, event_id: int) -> Optional[Dict[str, Any]]:
         """
         Get a specific event based on the event's ID.
         
