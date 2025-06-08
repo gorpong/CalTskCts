@@ -139,6 +139,16 @@ docker run -it <imagename> caltskcts <arguments, see above>
 
 That will launch the docker container that had the `pip install -e .` already done as part of the `docker build` step.
 
+## Running the Flask API in a Docker Container
+
+If you want to run the Flask API app in a docker container and be able to hit it with a web browser, you can run this:
+
+```bash
+docker run -e STATE_URI="sqlite:////app/data/app.db" --network=host caltskc-api flask run
+```
+
+This will launch it using the built-in copy of the templates database and it will start listening on port 5000. You can then connect your web browser to http://localhost:5000/contacts to look at the contacts, and similarly for /tasks and /calendars.
+
 ## Requirements
 
 * Python 3.6 or higher
