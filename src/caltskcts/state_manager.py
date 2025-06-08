@@ -312,7 +312,12 @@ class StateManagerBase(ABC, Generic[ModelType]):
                 return False
         else:
             self._state[item_id] = item_data
-            self._save_one_file(item_id, item_data)
+            for k, v in self._state[item_id].items():
+                if isinstance(v, datetime):
+                    self._state[item_id][k] = v.strftime("%m/%d/%Y %H:%M")
+                elif isinstance(v, date):
+                    self._state[item_id][k] = v.strftime("%m/%d/%Y")
+            self._save_one_file(item_id, self._state[item_id])
         self.logger.info(f"Added item with ID {item_id}")
         return True
 
@@ -368,9 +373,14 @@ class StateManagerBase(ABC, Generic[ModelType]):
                 log_exception(e, f"Failed to update item {item_id} in DB")
                 return False
         else:
-            new_data = {**self._state[item_id], **updates} # type: ignore
-            self._validate_item(new_data)
-            self._state[item_id].update(updates)
+            merged = {**self._state[item_id], **updates}  # type: ignore
+            self._validate_item(merged)
+            for k, v in merged.items():
+                if isinstance(v, datetime):
+                    merged[k] = v.strftime("%m/%d/%Y %H:%M")
+                elif isinstance(v, date):
+                    merged[k] = v.strftime("%m/%d/%Y")
+            self._state[item_id] = merged
             self._save_one_file(item_id, self._state[item_id])
             return True
 

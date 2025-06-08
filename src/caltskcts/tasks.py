@@ -2,13 +2,9 @@ from typing import Dict, List, Optional, Any, MutableMapping
 from datetime import datetime, date
 from sqlalchemy import Integer, Float, String, Date
 from sqlalchemy.orm import Mapped, mapped_column
+from pydantic import ValidationError
 from caltskcts.state_manager import Base, StateManagerBase
-from caltskcts.validation_utils import (
-    validate_required_fields,
-    validate_date_format,
-    validate_numeric_range,
-    validate_enum_value
-)
+from caltskcts.schemas import TaskModel
 
 class TaskData(Base):
     __tablename__ = "tasks"
@@ -17,15 +13,13 @@ class TaskData(Base):
     title:    Mapped[str]            = mapped_column(String,  nullable=False)
     desc:     Mapped[Optional[str]]  = mapped_column(String,  nullable=True)
     dueDate:  Mapped[Optional[date]] = mapped_column(Date,    nullable=True)
-    progress: Mapped[float]          = mapped_column(Float,   nullable=False)
+    progress: Mapped[float]          = mapped_column(Float,   nullable=False, default=0.0)
     state:    Mapped[str]            = mapped_column(String,  nullable=False)
     
 class Tasks(StateManagerBase[TaskData]):
     """Manages tasks and their due dates, status, and completion progress."""
     
     Model = TaskData
-    
-    VALID_STATES = ["Not Started", "In Progress", "Completed", "On Hold", "Cancelled"]
     
     def _validate_item(self, item: MutableMapping[str, Any]) -> bool:
         """
@@ -41,22 +35,14 @@ class Tasks(StateManagerBase[TaskData]):
             ValueError: If validation fails
         """
         self.logger.debug("Calling _validate_item")
-        # Check required fields
-        validate_required_fields(item, ["title"])
-            
-        # Validate date format if provided
-        if "dueDate" in item and item["dueDate"] is not None:
-            validate_date_format(item["dueDate"], "%m/%d/%Y")
-        
-        # Validate progress range
-        if "progress" in item:
-            validate_numeric_range(item["progress"], "Progress", 0, 100)
-        
-        # Validate state if provided
-        if "state" in item:
-            validate_enum_value(item["state"], self.VALID_STATES, "state")
-            
-        self.logger.debug("Item validated")
+        try:
+            model = TaskModel(**item)
+        except ValidationError as ve:
+            self.logger.error("Validation Error!", str(ve))
+            raise ValueError(str(ve))
+        normalized = model.model_dump()
+        item.clear()
+        item.update(normalized)
         return True
 
     def add_task(
@@ -131,26 +117,22 @@ class Tasks(StateManagerBase[TaskData]):
         if not current_data:
             raise ValueError(f"Task with ID {task_id} does not exist.")
         
-        # Build updates dictionary with consistency between progress and state
-        updates = {}
-        if title is not None:
-            updates["title"] = title
-        if description is not None:
-            updates["desc"] = description
-        if due_date is not None:
-            updates["dueDate"] = due_date
-        if progress is not None:
-            updates["progress"] = progress
-            # Auto-update state if progress is 100%
-            if progress == 100.0:
-                updates["state"] = "Completed"
-        if state is not None:
-            updates["state"] = state
-            # Auto-update progress if state is "Completed"
-            if state == "Completed":
-                updates["progress"] = 100.0
-                
-        if self.update_item(task_id, updates): # type: ignore
+        updates: Dict[str, Any] = {
+            k: v for k, v in {
+                "title":    title,
+                "desc":     description,
+                "dueDate":  due_date,
+                "progress": progress,
+                "state":    state,
+            }.items() if v is not None
+        }
+        merged_data = {**current_data, **updates}
+        try:
+            validated_data = TaskModel(**merged_data).model_dump()
+        except ValidationError as ve:
+            raise ValueError(str(ve))
+
+        if self.update_item(task_id, validated_data):  # type: ignore
             return f"Task {task_id} updated"
         else:
             raise ValueError(f"Failed to update task {task_id}")

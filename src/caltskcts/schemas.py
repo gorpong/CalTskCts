@@ -1,7 +1,7 @@
 from pydantic import (
     BaseModel,
-    Field,
     ConfigDict,
+    confloat,
     constr,
     conint,
     field_validator,
@@ -10,6 +10,7 @@ from pydantic import (
 from typing import List, Optional
 from datetime import datetime, date
 import re
+from caltskcts.constants import VALID_TASK_STATES
 
 # --- Contact schema ---
 
@@ -95,9 +96,9 @@ class EventModel(BaseModel):
 class TaskModel(BaseModel):
     title:    constr(min_length=1, strip_whitespace=True) # type: ignore
     desc:     Optional[str] = None
-    dueDate:  date                      # Pydantic will parse via validator
-    progress: conint(ge=0, le=100)     # type: ignore # integer 0–100
-    state:    constr(min_length=1, strip_whitespace=True) # type: ignore
+    dueDate:  Optional[date] = None
+    progress: Optional[confloat(ge=0, le=100)] = None     # type: ignore
+    state:    Optional[constr(min_length=1, strip_whitespace=True)] = None # type: ignore
 
     model_config = ConfigDict(
         str_strip_whitespace=True,
@@ -106,43 +107,47 @@ class TaskModel(BaseModel):
 
     @field_validator("dueDate", mode="before")
     @classmethod
-    def parse_due_date_string(cls, v) -> date:
+    def parse_due_date(cls, v) -> date:
         if isinstance(v, str):
             try:
                 return datetime.strptime(v, "%m/%d/%Y").date()
             except ValueError:
                 raise ValueError("Invalid date format. Use MM/DD/YYYY")
-        if isinstance(v, date):
+        elif isinstance(v, date):
+            return v
+        elif v is None:
             return v
         raise ValueError("Invalid date type; must be string or date")
 
+    @field_validator("state", mode="before")
+    @classmethod
+    def check_valid_state(cls, v) -> str:
+        """
+        Enforce that state is a valid state
+        """
+        if isinstance(v, str):
+            if v not in VALID_TASK_STATES:
+                raise ValueError(f"Invalid state. Must be one of {', '.join(VALID_TASK_STATES)}")
+            else:
+                return v
+        elif v is None:
+            return v
+        raise ValueError(f"Invalid state type({type(v)}); must be string")
+
     @model_validator(mode="after")
     @classmethod
-    def sync_progress_state(cls, values):
+    def sync_progress_state(cls, model_instance: "TaskModel") -> "TaskModel":
         """
         Enforce or auto-fill the relationship:
           - If both 'progress' and 'state' provided → ensure consistency.
           - If only one provided → set the other appropriately when needed.
         """
-        prog = values.get("progress")
-        st = values.get("state")
+        prog = model_instance.progress
+        st   = model_instance.state
 
-        # If both provided, enforce consistency
-        if prog is not None and st is not None:
-            if prog == 100 and st != "Completed":
-                raise ValueError("If progress=100, state must be 'Completed'")
-            if st == "Completed" and prog < 100:
-                raise ValueError("If state='Completed', progress must be 100")
-            return values
+        if prog == 100 and st != "Completed":
+            model_instance.state = "Completed"
+        if st == "Completed" and prog != 100:
+            model_instance.progress = 100
 
-        # If only progress=100 → auto‐fill state
-        if prog == 100 and st is None:
-            values["state"] = "Completed"
-            return values
-
-        # If only state="Completed" → auto‐fill progress=100
-        if st == "Completed" and prog is None:
-            values["progress"] = 100
-            return values
-
-        return values
+        return model_instance

@@ -5,6 +5,7 @@ from datetime import datetime
 from unittest.mock import patch
 
 from caltskcts.tasks import Tasks
+from caltskcts.constants import VALID_TASK_STATES
 
 class TestTasks(unittest.TestCase):
     """Test suite for the Tasks class."""
@@ -71,7 +72,9 @@ class TestTasks(unittest.TestCase):
         }
         with self.assertRaises(ValueError) as context:
             self.tasks._validate_item(invalid_item)
-        self.assertEqual(str(context.exception), "Missing required field: title")
+        msg = str(context.exception)
+        self.assertIn("validation error", msg)
+        self.assertIn("Field required", msg)
 
     def test_validate_item_invalid_date_format(self):
         """Test validation of task data with invalid date format."""
@@ -84,7 +87,9 @@ class TestTasks(unittest.TestCase):
         }
         with self.assertRaises(ValueError) as context:
             self.tasks._validate_item(invalid_item)
-        self.assertEqual(str(context.exception), "Invalid date format. Use MM/DD/YYYY")
+        msg = str(context.exception)
+        self.assertIn("validation error", msg)
+        self.assertIn("Invalid date format. Use MM/DD/YYYY", msg)
     
     def test_validate_item_invalid_progress(self):
         """Test validation of task data with invalid progress value."""
@@ -98,19 +103,25 @@ class TestTasks(unittest.TestCase):
         }
         with self.assertRaises(ValueError) as context:
             self.tasks._validate_item(invalid_item)
-        self.assertEqual(str(context.exception), "Progress must be a number between 0 and 100")
+        msg = str(context.exception)
+        self.assertIn("validation error", msg)
+        self.assertIn("greater than or equal to 0", msg)
         
         # Test with progress > 100
         invalid_item["progress"] = 110.0
         with self.assertRaises(ValueError) as context:
             self.tasks._validate_item(invalid_item)
-        self.assertEqual(str(context.exception), "Progress must be a number between 0 and 100")
+        msg = str(context.exception)
+        self.assertIn("validation error", msg)
+        self.assertIn("less than or equal to 100", msg)
         
         # Test with non-numeric progress
         invalid_item["progress"] = "50%"
         with self.assertRaises(ValueError) as context:
             self.tasks._validate_item(invalid_item)
-        self.assertEqual(str(context.exception), "Progress must be a number")
+        msg = str(context.exception)
+        self.assertIn("validation error", msg)
+        self.assertIn("valid number", msg)
     
     def test_validate_item_invalid_state(self):
         """Test validation of task data with invalid state."""
@@ -123,7 +134,9 @@ class TestTasks(unittest.TestCase):
         }
         with self.assertRaises(ValueError) as context:
             self.tasks._validate_item(invalid_item)
-        self.assertIn("Invalid state. Must be one of:", str(context.exception))
+        msg = str(context.exception)
+        self.assertIn("validation error", msg)
+        self.assertIn("Invalid state", msg)
 
     def test_add_task_basic(self):
         """Test adding a basic task."""
@@ -184,7 +197,7 @@ class TestTasks(unittest.TestCase):
             
             # Progress boundary cases
             ({"title": "Min Progress", "desc": "Zero progress", "progress": 0, "state": "Not Started"}, None),
-            ({"title": "Max Progress", "desc": "Hundred progress", "progress": 100, "state": "Not Started"}, None),
+            ({"title": "Max Progress", "desc": "Hundred progress", "progress": 100, "state": "Completed"}, None),
             ({"title": "Just Under Max", "desc": "99.99 progress", "progress": 99.99, "state": "Not Started"}, None),
             ({"title": "Just Over Min", "desc": "0.01 progress", "progress": 0.01, "state": "Not Started"}, None),
             ({"title": "Negative Progress", "desc": "Should fail", "progress": -1, "state": "Not Started"}, ValueError),
@@ -438,13 +451,12 @@ class TestTasks(unittest.TestCase):
     
     def test_state_validation_comprehensive(self):
         """Test all possible state values and invalid states."""
-        # All valid states defined in Tasks.VALID_STATES
-        for state in self.tasks.VALID_STATES:
+        for state in VALID_TASK_STATES:
             with self.subTest(state=state):
                 task_data = {
                     "title": f"State Test - {state}", 
                     "desc": f"Testing state: {state}",
-                    "progress": 0.0, 
+                    "progress": 0.0 if state != "Completed" else 100.0, 
                     "state": state
                 }
                 # Should not raise an exception
