@@ -18,6 +18,8 @@ setup(
         "pytest==8.3.4",
         "pytest-asyncio==0.25.3",
         "pytest-django==4.9.0",
+        "pydantic>=2.0",
+        "Flask>=2.0",
         "psycopg[binary]"
     ],
     classifiers=[
