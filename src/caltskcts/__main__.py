@@ -3,42 +3,45 @@ import os
 import readline
 import atexit
 import argparse
-from typing import Dict, Any, List, Union
+from typing import Dict, Any, List, Union, Tuple, Optional
 import re
+import sys
 
 # Local imports
 from caltskcts.calendars import Calendar
 from caltskcts.tasks import Tasks
 from caltskcts.contacts import Contacts
-from caltskcts.logger import get_logger, log_exception, set_log_level
+from caltskcts.logger import get_logger, log_exception
 from caltskcts.config import DATABASE_URI
 
 HISTORY_FILE = ".calTskCts_history"
-
-# Initialize logger
-logger = get_logger()
+logger = get_logger(__name__)
 
 def extract_sqlite_path(uri: str) -> str:
     match = re.match(r"sqlite:///(.+)", uri)
     return match.group(1) if match else uri
 
-def parse_arguments() -> argparse.Namespace:
+def parse_arguments(argv: Optional[List[str]] = None) -> argparse.Namespace:
     """Parse command line arguments for storage selection."""
     parser = argparse.ArgumentParser(description="Calendar, Tasks, and Contacts Manager")
     
-    # Create a mutually exclusive group for storage options
+    # Mutually exclusive group for storage (JSON vs SQLite)
     storage_group = parser.add_mutually_exclusive_group()
-    storage_group.add_argument("-f", "--files", action="store_true", 
-                              help="Use JSON files for storage (default)")
-    storage_group.add_argument("-db", "--database", nargs="?", const=DATABASE_URI, metavar="DB_PATH",
-                              help="Use SQLite database for storage (optionally specify path)")
-    
-    args = parser.parse_args()
-    
-    # If neither option is specified, default to files
+    storage_group.add_argument(
+        "-f", "--files", action="store_true",
+        help="Use JSON files for storage (default)"
+    )
+    storage_group.add_argument(
+        "-db", "--database", nargs="?", const=DATABASE_URI, metavar="DB_PATH",
+        help="Use SQLite database for storage (optionally specify path)"
+    )
+
+    args = parser.parse_args(argv)
+
+    # Default to files if neither given
     if not args.files and not args.database:
         args.files = True
-    
+
     # If database is specified, ensure it has the correct SQLAlchemy prefix
     if args.database:
         if not args.database.startswith("sqlite:///"):
@@ -52,6 +55,26 @@ def parse_arguments() -> argparse.Namespace:
                 os.makedirs(db_dir)
     
     return args
+
+def setup_storage(args: argparse.Namespace) -> Tuple[Calendar, Tasks, Contacts, str]:
+    """
+    Given parsed args, initialize and return
+    (cal, tsk, ctc, storage_type_name).
+    """
+    if args.files:
+        logger.info("Using JSON files for storage")
+        cal = Calendar("_calendar.json")
+        tsk = Tasks("_tasks.json")
+        ctc = Contacts("_contacts.json")
+        storage_type = "file-based"
+    else:
+        logger.info(f"Using database for storage: {args.database}")
+        cal = Calendar(args.database)
+        tsk = Tasks(args.database)
+        ctc = Contacts(args.database)
+        storage_type = "database"
+
+    return cal, tsk, ctc, storage_type
 
 def setup_readline(command_map: Dict[str, List[str]]) -> None:
     """
@@ -197,30 +220,14 @@ def dispatch_command(command: str, context: Dict[str, Any]) -> Any:
         # Re-raise with original traceback
         raise
 
-def main() -> None:
+def main(argv: Optional[List[str]] = None) -> None:
     logger.info("Application starting")
-    
     try:
-        # Parse command line arguments
-        args = parse_arguments()
-        
-        # Determine storage type based on arguments
-        if args.files:
-            logger.info("Using JSON files for storage")
-            cal = Calendar("_calendar.json")
-            tsk = Tasks("_tasks.json")
-            ctc = Contacts("_contacts.json")
-            storage_type = "file-based"
-        else:  # args.database must be True due to mutually exclusive group
-            logger.info(f"Using database for storage: {args.database}")
-            cal = Calendar(args.database)
-            tsk = Tasks(args.database)
-            ctc = Contacts(args.database)
-            storage_type = "database"
-
-        # Initialize objects with data files
+        # ==== argument parsing & storage setup ====
+        args = parse_arguments(argv)
         logger.info("Initializing application components")
-        
+        cal, tsk, ctc, storage_type = setup_storage(args)
+        command_map = get_command_map()
         # Create context with available objects
         context: Dict[str, Any] = {
             "cal": cal,
@@ -230,10 +237,7 @@ def main() -> None:
         }
         logger.info("Application context initialized")
 
-        # Set up command history and auto-completion
-        command_map = get_command_map()
         setup_readline(command_map)
-        
         # Print welcome message and instructions
         logger.info("Starting interactive mode")
         print("Interactive Mode: Enter commands to interact with Calendar, Tasks, and Contacts.")
@@ -272,18 +276,15 @@ def main() -> None:
                 print(formatted_output)
                 
             except Exception as e:
-                error_message = f"Error: {str(e)}"
-                print(error_message)
-                # Log the full traceback for debugging
+                print(f"Error: {e}")
                 log_exception(e, "Command execution error")
-    
+
     except Exception as e:
-        logger.critical(f"Fatal error: {str(e)}")
-        print(f"Fatal error occurred: {str(e)}")
-        # Log the full traceback
+        logger.critical(f"Fatal error: {e}")
+        print(f"Fatal error occurred: {e}")
         log_exception(e, "Fatal application error")
     finally:
         logger.info("Application exiting")
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
