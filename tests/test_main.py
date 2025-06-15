@@ -1,10 +1,10 @@
 import pytest
 import sys
-import io
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import caltskcts.__main__ as main_mod
+from caltskcts.dispatch_utils import get_command_map, dispatch_command
 
 
 class DummyCal:
@@ -49,7 +49,7 @@ def test_setup_storage_file(monkeypatch):
     assert ctc.uri == "_contacts.json"
 
 def test_command_map_has_all_keys():
-    command_map = main_mod.get_command_map()
+    command_map = get_command_map()
     assert "cal" in command_map
     assert "tsk" in command_map
     assert "ctc" in command_map
@@ -62,7 +62,6 @@ def test_mutually_exclusive_args_fail(monkeypatch, capsys):
         main_mod.main()
     captured = capsys.readouterr()
     assert "not allowed with argument" in captured.err
-
 
 def test_default_backend_files(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["prog", "--files"])
@@ -112,7 +111,7 @@ def test_dispatch_command_add_event(monkeypatch):
     ctx = {"cal": cal, "tsk": tsk, "ctc": ctc, "result": [None]}
 
     cmd = "cal.add_event(title='Hello', date='06/15/2025 09:00', duration=30, users=['A','B'])"
-    result = main_mod.dispatch_command(cmd, ctx)
+    result = dispatch_command(cmd, ctx)
 
     assert isinstance(result, dict)
     assert result["title"] == "Hello"
