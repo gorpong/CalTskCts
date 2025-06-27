@@ -21,7 +21,7 @@
             "class": "logging.handlers.RotatingFileHandler",
             "level": "DEBUG",
             "formatter": "detailed",
-            "filename": "logs/calmsgcts.log",
+            "filename": "logs/caltskcts.log",
             "maxBytes": 5242880,
             "backupCount": 5,
             "encoding": "utf8"
