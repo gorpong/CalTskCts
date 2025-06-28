@@ -139,6 +139,31 @@ docker run -it <imagename> caltskcts <arguments, see above>
 
 That will launch the docker container that had the `pip install -e .` already done as part of the `docker build` step.
 
+### Running the CLI in the Docker Container
+
+The Docker container doesn't save state in the current configuration unless you map a directory, so everything you do has to be checked within the same instance. Given that, you have a couple of ways to run the CLI components:  (1) run the interactive command interpreter; (2) use the CLI components to just to get information, (3) use the CLI components interactively so you can get, change, review, etc.  Note that with #2, it's ephemeral, so as soon as you stop the container, the state resets.
+
+1. Run as interactive command intepreter:
+
+```bash
+docker run -it <imagename> caltskcts [optional -f, -db]
+```
+
+2. Run a single CLI command (e.g., for listing things):
+
+```bash
+docker run -it <imagename> caltskcts cal list_events
+```
+
+3. Run a shell interactively to use CLI commands:
+
+```bash
+docker run -it <imagename> sh
+caltskcts cal add_event --title "This is a new one" --date "11/15/2014 10:00" --duration 45
+caltskcts cal list_events
+...
+```
+
 ## Running the Flask API in a Docker Container
 
 If you want to run the Flask API app in a docker container and be able to hit it with a web browser, you can run this:
