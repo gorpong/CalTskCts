@@ -1,6 +1,6 @@
 # cli.py - Typer-based CLI for CalTskCts
 import json
-from typing import Optional, List
+from typing import Any, Optional, List
 import typer
 from caltskcts.dispatch_utils import dispatch_command
 
@@ -28,82 +28,321 @@ def add_event(
     ctx: typer.Context,
     title: str = typer.Option(..., "--title", "-t", help="Event title"),
     date: str = typer.Option(..., "--date", "-d", help="MM/DD/YYYY HH:MM"),
-    duration: int = typer.Option(30, "--duration", "-D", help="Duration in minutes"),
-    users: List[str] = typer.Option([], "--user", "-u", help="Users to invite")
+    duration: Optional[int] = typer.Option(None, "--duration", "-D", help="Duration in minutes"),
+    users: Optional[List[str]] = typer.Option(None, "--users", "--user", "-u", help="Users to invite"),
+    id: Optional[int] = typer.Option(None, "--event_id", "--id", "-i", help="Specific ID to use (error if exists)")
 ):
     """Add a calendar event."""
     cal = ctx.obj["cal"]
-    result = cal.add_event(title=title, date=date, duration=duration, users=users)
+    params: dict[str, Any] = {
+        k: v for k, v in {
+        "title": title,
+        "date": date,
+        "duration": duration,
+        "users": users,
+        "event_id": id
+        }.items() if v is not None
+    }
+    result = cal.add_event(**params)
     typer.echo(result)
 
-@cal_app.command("list_events")
+
+@cal_app.command("list_events", help="Get a list of all events in the calendar")
 def list_events(ctx: typer.Context):
-    """List all calendar events."""
     cal = ctx.obj["cal"]
     events = cal.list_events()
     typer.echo(events)
 
-# ------- Task Commands -------
-@tsk_app.command("add_task")
-def add_task(
+@cal_app.command("get_event", help="Get a specific calendar event based on its ID")
+def get_event(
     ctx: typer.Context,
-    title: str = typer.Option(..., "--title", "-t"),
-    description: str = typer.Option("", "--desc", "-d"),
-    due_date: Optional[str] = typer.Option(None, "--due", help="MM/DD/YYYY"),
-    progress: float = typer.Option(0.0, "--progress"),
-    state_str: str = typer.Option("Not Started", "--state")
+    id: int = typer.Option(..., "--event_id", "--id", "-i", help="The ID for the calendar event")
 ):
-    """Add a new task."""
+    cal = ctx.obj["cal"]
+    events = cal.list_events()
+    typer.echo(events)
+
+@cal_app.command("update_event", help="Update an existing event")
+def update_event(
+    ctx: typer.Context,
+    event_id: int = typer.Option(..., "--event_id", "--id", "-i", help="Event ID"),
+    title: Optional[str] = typer.Option(None, "--title", "-t", help="Event title"),
+    date: Optional[str] = typer.Option(None, "--date", "-d", help="MM/DD/YYYY HH:MM"),
+    duration: Optional[int] = typer.Option(None, "--duration", "-D", help="Duration in minutes"),
+    users: Optional[List[str]] = typer.Option(None, "--users", "-u", help="Users to invite")
+    
+):
+    cal = ctx.obj["cal"]
+    params: dict[str, Any] = {
+        k: v for k, v in {
+        "event_id": event_id,
+        "title": title,
+        "date": date,
+        "duration": duration,
+        "users": users
+        }.items() if v is not None
+    }
+    events = cal.update_event(**params)
+    typer.echo(events)
+    
+@cal_app.command("delete_event", help="Delete a calendar event")
+def delete_event(
+    ctx: typer.Context,
+    id: int = typer.Option(..., "--event_id", "--id", "-i", help="Event ID to delete")
+):
+    """Delete an existing event."""
+    cal = ctx.obj["cal"]
+    events = cal.delete_event(event_id = id)
+    typer.echo(events)
+
+@cal_app.command("get_events_by_date", help="Get all events on a specific date")
+def get_events_by_date(
+    ctx: typer.Context,
+    date: str = typer.Option(..., "--date", "-d", help="Date in MM/DD/YYYY format")
+):
+    """Get all of the events from a particular date."""
+    cal = ctx.obj["cal"]
+    events = cal.get_events_by_date(date = date)
+    typer.echo(events)
+
+@cal_app.command("get_events_between", help="Get all events between two dates (inclusive).")
+def get_events_between(
+    ctx: typer.Context,
+    start: str = typer.Option(..., "--start_datetime", "--start", "-s", help="Start date/time in MM/DD/YYYY [HH:MM] format"),
+    end: str = typer.Option(..., "--end_datetime", "--end", "-e", help="End date/time in MM/DD/YYYY [HH:MM] format")
+):
+    cal = ctx.obj["cal"]
+    events = cal.get_events_between(start_datetime=start, end_datetime=end)
+    typer.echo(events)
+
+@cal_app.command("find_next_available", help="Find the next available time slot.")
+def find_next_available(
+    ctx: typer.Context,
+    start: str = typer.Option(..., "--start_datetime", "--start", "-s", help="Starting point to search from (MM/DD/YYYY HH:MM)"),
+    duration: Optional[int] = typer.Option(None, "--duration_minutes", "--duration", "--min", "-d", "-m", help="Required duration in minutes")
+):
+    cal = ctx.obj["cal"]
+    events = cal.find_next_available(start_datetime=start, duration_minutes=duration) if duration is not None else cal.find_next_available(start_datetime=start)
+    typer.echo(events)
+
+# ------- Task Commands -------
+@tsk_app.command("get_task", help="Get a specific task based on the task's ID")
+def get_task(
+    ctx: typer.Context,
+    id: int = typer.Option(..., "--task_id", "--id", "-i", help="The ID for the task")
+):
     tsk = ctx.obj["tsk"]
-    result = tsk.add_task(title=title, description=description, due_date=due_date, progress=progress, state=state_str)
+    result = tsk.get_task(task_id=id)
     typer.echo(result)
 
-@tsk_app.command("list_tasks")
+@tsk_app.command("add_task", help="Add a Task to the system")
+def add_task(
+    ctx: typer.Context,
+    title: str = typer.Option(..., "--title", "-t", help="The title of the new task"),
+    description: str = typer.Option("", "--description", "--desc", "-d", help="The description for the task"),
+    due_date: Optional[str] = typer.Option(None, "--due_date", "--due", help="The due date for the task (MM/DD/YYYY)"),
+    progress: Optional[float] = typer.Option(None, "--progress", help="Progress (0-100)"),
+    state_str: Optional[str] = typer.Option(None, "--state", help="The state (In Progress, Completed, ...)"),
+    task_id: Optional[int] = typer.Option(None, "--task_id", "--id", "-i", help="Optional Task ID to add (error if it exists)")
+):
+    tsk = ctx.obj["tsk"]
+    params: dict[str, Any] = {
+        k: v for k, v in {
+        "title": title,
+        "description": description,
+        "due_date": due_date,
+        "progress": progress,
+        "state": state_str,
+        "task_id": task_id
+        }.items() if v is not None
+    }
+    result = tsk.add_task(**params)
+    typer.echo(result)
+
+@tsk_app.command("delete_task", help="Delete a task")
+def delete_task(
+    ctx: typer.Context,
+    id: int = typer.Option(..., "--task_id", "--id", "-i", help="The ID of the task")
+):
+    tsk = ctx.obj["tsk"]
+    result = tsk.delete_task(task_id=id)
+    typer.echo(result)
+
+@tsk_app.command("update_task", help="Update an existing task")
+def update_task(
+    ctx: typer.Context,
+    id: int = typer.Option(..., "--task_id", "--id", "-i", help="The ID of the task to update"),
+    title: Optional[str] = typer.Option(None, "--title", "-t", help="The new title"),
+    desc: Optional[str] = typer.Option("", "--description", "--desc", "-d", help="The new description"),
+    date: Optional[str] = typer.Option(None, "--due_date", "--due", help="New Due Date (MM/DD/YYYY)"),
+    progress: Optional[float] = typer.Option(None, "--progress"),
+    state: Optional[str] = typer.Option(None, "--state")
+):
+    tsk = ctx.obj["tsk"]
+    params: dict[str, Any] = {
+        k: v for k, v in {
+        "task_id": id,
+        "title": title,
+        "description": desc,
+        "due_date": date,
+        "progress": progress,
+        "state": state
+        }.items() if v is not None
+    }
+    result = tsk.update_task(**params)
+    typer.echo(result)
+
+@tsk_app.command("get_tasks_due_today", help="Get all tasks due today or before")
+def get_tasks_due_today(
+    ctx: typer.Context,
+    today: Optional[str] = typer.Option(None, "--today", help="Date in MM/DD/YYYY format, defaults to current date")
+):
+    tsk = ctx.obj["tsk"]
+    result = tsk.get_tasks_due_today(today=today) if today is not None else tsk.get_tasks_due_today()
+    typer.echo(result)
+
+@tsk_app.command("get_tasks_due_on", help="Get all tasks due on a specific date")
+def get_tasks_due_on(
+    ctx: typer.Context,
+    date: str = typer.Option(..., "--date", help="Date in MM/DD/YYYY format")
+):
+    tsk = ctx.obj["tsk"]
+    result = tsk.get_tasks_due_on(date=date)
+    typer.echo(result)
+
+@tsk_app.command("get_tasks_due_on_or_before", help="Get all tasks due on or before a date")
+def get_tasks_due_on_or_before(
+    ctx: typer.Context,
+    date: str = typer.Option(..., "--date", help="Date in MM/DD/YYYY format")
+):
+    tsk = ctx.obj["tsk"]
+    result = tsk.get_tasks_due_on_or_before(date=date)
+    typer.echo(result)
+
+@tsk_app.command("get_tasks_with_progress", help="Get tasks filtered by progress range.")
+def get_tasks_with_progress(
+    ctx: typer.Context,
+    min: float = typer.Option(..., "--min_progress", "--min", help="Minimum progress value"),
+    max: float = typer.Option(..., "--max_progress", "--max", help="Maximum progress value")
+):
+    tsk = ctx.obj["tsk"]
+    result = tsk.get_tasks_with_progress(min_progress=min, max_progress=max)
+    typer.echo(result)
+
+@tsk_app.command("get_tasks_by_state", help="Get tasks matching a state pattern")
+def get_tasks_by_state(
+    ctx: typer.Context,
+    state: Optional[str] = typer.Option(None, "--state", "--st", help="State or state pattern to match")
+):
+    tsk = ctx.obj["tsk"]
+    result = tsk.get_tasks_by_state(state=state) if state is not None else tsk.get_tasks_by_state()
+    typer.echo(result)
+
+@tsk_app.command("list_tasks", help="List all tasks")
 def list_tasks(ctx: typer.Context):
-    """List all tasks."""
     tsk = ctx.obj["tsk"]
     tasks = tsk.list_tasks()
     typer.echo(tasks)
 
 # ------- Contact Commands -------
-@ctc_app.command("add_contact")
+@ctc_app.command("add_contact", help="Add a contact")
 def add_contact(
     ctx: typer.Context,
-    first_name: str = typer.Option(..., "--first", "-f"),
-    last_name: str = typer.Option(..., "--last", "-l"),
-    email: Optional[str] = typer.Option(None, "--email", "-e"),
-    company: Optional[str] = typer.Option(None),
-    title: Optional[str] = typer.Option(None),
-    work_phone: Optional[str] = typer.Option(None),
-    mobile_phone: Optional[str] = typer.Option(None),
-    home_phone: Optional[str] = typer.Option(None)
+    first_name: str = typer.Option(..., "--first", "-f", help="Contact's first name"),
+    last_name: str = typer.Option(..., "--last", "-l", help="Contact's last name"),
+    email: Optional[str] = typer.Option(None, "--email", "-e", help="Email address"),
+    company: Optional[str] = typer.Option(None, "--company", "--comp", help="Company name"),
+    title: Optional[str] = typer.Option(None, "--title", "-t", help="Job title"),
+    work_phone: Optional[str] = typer.Option(None, "--work_phone", "--work", "-w", help="Work phone number"),
+    mobile_phone: Optional[str] = typer.Option(None, "--moble_phone", "--mobile", "-m", help="Mobile phone number"),
+    home_phone: Optional[str] = typer.Option(None, "--home_phone", "--home", "-h", help="Home phone number"),
+    id: Optional[int] = typer.Option(None, "--contact_id", "--id", help="Optional specific ID to use")
 ):
-    """Add a new contact."""
     ctc = ctx.obj["ctc"]
-    result = ctc.add_contact(
-        first_name=first_name,
-        last_name=last_name,
-        title=title,
-        company=company,
-        work_phone=work_phone,
-        mobile_phone=mobile_phone,
-        home_phone=home_phone,
-        email=email
-    )
+    params: dict[str, Any] = {
+        k: v for k, v in {
+            "contact_id": id,
+            "first_name": first_name,
+            "last_name": last_name,
+            "title": title,
+            "company": company,
+            "work_phone": work_phone,
+            "mobile_phone": mobile_phone,
+            "home_phone": home_phone,
+            "email": email
+        }.items() if v is not None
+    }
+    result = ctc.add_contact(**params)
     typer.echo(result)
 
-@ctc_app.command("list_contacts")
+@ctc_app.command("update_contact", help="Update an existing contact.")
+def update_contact(
+    ctx: typer.Context,
+    id: int = typer.Option(..., "--contact_id", "--id", help="The ID of the contact to update"),
+    first_name: Optional[str] = typer.Option(None, "--first_name", "--fname", "--first", help="New first name"),
+    last_name: Optional[str] = typer.Option(None, "--last_name", "--lname", "--last", help="New last name"),
+    title: Optional[str] = typer.Option(None, "--title", help="New job title"),
+    company: Optional[str] = typer.Option(None, "--company", "--comp", help="New company name"),
+    work: Optional[str] = typer.Option(None, "--work_phone", "--work", help="New work phone"),
+    mobile: Optional[str] = typer.Option(None, "--mobile_phone", "--mobile", help="New mobile phone"),
+    home: Optional[str] = typer.Option(None, "--home_phone", "--home", help="New home phone"),
+    email: Optional[str] = typer.Option(None, "--email", "--mail", help="New email address")
+):
+    ctc = ctx.obj["ctc"]
+    params: dict[str, Any] = {
+        k: v for k, v in {
+            "contact_id": id,
+            "first_name": first_name,
+            "last_name": last_name,
+            "title": title,
+            "company": company,
+            "work_phone": work,
+            "mobile_phone": mobile,
+            "home_phone": home,
+            "email": email
+        }.items() if v is not None
+    }
+    result = ctc.update_contact(**params)
+    typer.echo(result)
+
+@ctc_app.command("delete_contact", help="Delete a contact.")
+def delete_contact(
+    ctx: typer.Context,
+    id: int = typer.Option(..., "--contact_id", "--id", help="ID of contact to delete")
+):
+    ctc = ctx.obj["ctc"]
+    result = ctc.delete_contact(contact_id=id)
+    typer.echo(result)
+
+@ctc_app.command("search_contacts", help="Search contacts by name, email, or phone number")
+def search_contacts(
+    ctx: typer.Context,
+    qry: str = typer.Option(..., "--query", "--qry", "-q", help="Search query (regex pattern)")
+):
+    ctc = ctx.obj["ctc"]
+    result = ctc.search_contacts(query=qry)
+    typer.echo(result)
+
+@ctc_app.command("list_contacts", help="List all contacts")
 def list_contacts(ctx: typer.Context):
-    """List all tasks."""
     ctc = ctx.obj["ctc"]
     contacts = ctc.list_contacts()
     typer.echo(contacts)
 
+@ctc_app.command("get_contact", help="Get a specific contact based on the contact ID.")
+def get_contact(
+    ctx: typer.Context,
+    id: int = typer.Option(..., "--contact_id", "--id", help="The integer ID for the contact")
+):
+    ctc = ctx.obj["ctc"]
+    contacts = ctc.get_contact(contact_id=id)
+    typer.echo(contacts)
+
 # ------- Raw Bridge Command -------
-@app.command("raw")
+@app.command("raw", help="Raw commands to bridge when CLI doesn't yet support, e.g, (raw 'cal.find_next_available(start_datetime='01/01/1990 10:30')")
 def raw(
     ctx: typer.Context,
-    command: str = typer.Argument(..., help="Command to execute, e.g. cal.get_event(event_id=1)")
+    command: str = typer.Argument(..., help="Command to execute, e.g. 'cal.get_event(event_id=1)'")
 ):
     """Execute raw REPL-style command (e.g. cal.list_events())"""
     try:
