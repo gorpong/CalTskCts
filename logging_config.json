@@ -26,15 +26,15 @@
             "backupCount": 5,
             "encoding": "utf8"
         },
-	"tskFile": {
-		"class": "logging.handlers.RotatingFileHandler",
-		"level": "DEBUG",
-		"formatter": "detailed",
-		"filename": "logs/tasks.log",
-		"maxBytes": 5242880,
-		"backupCount": 5,
-		"encoding": "utf8"
-	}
+        "tskFile": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "level": "DEBUG",
+            "formatter": "detailed",
+            "filename": "logs/tasks.log",
+            "maxBytes": 5242880,
+            "backupCount": 5,
+            "encoding": "utf8"
+        }
     },
     "loggers": {
         "CalMsgsCts": {
@@ -42,11 +42,11 @@
             "handlers": ["console", "file"],
             "propagate": false
         },
-	"Tasks": {
-		"level": "DEBUG",
-		"handlers": ["console", "file", "tskFile"],
-		"propagate": false
-	}
+        "Tasks": {
+            "level": "DEBUG",
+            "handlers": ["console", "file", "tskFile"],
+            "propagate": false
+        }
     },
     "root": {
         "level": "INFO",

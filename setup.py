@@ -20,6 +20,8 @@ setup(
         "pytest-django==4.9.0",
         "pydantic>=2.0",
         "Flask>=2.0",
+        "typer>=0.9.0",
+        "click>=8.1.0",
         "psycopg[binary]"
     ],
     classifiers=[
