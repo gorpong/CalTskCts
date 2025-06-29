@@ -5,7 +5,8 @@ import typer
 from pathlib import Path
 from caltskcts.dispatch_utils import dispatch_command
 from caltskcts.import_export import (
-    export_contacts_csv, import_contacts_csv, import_contacts_vcard,
+    export_contacts_csv, import_contacts_csv, 
+    import_contacts_vcard, export_contacts_vcard,
     export_events_ics,  import_events_ics,
     export_tasks_csv,  import_tasks_csv
 )
@@ -373,7 +374,6 @@ def export(
     if what == "contacts" and fmt == "csv":
         export_contacts_csv(ctx.obj["ctc"].state_uri, out)
     elif what == "contacts" and fmt == "vcard":
-        from caltskcts.import_export import export_contacts_vcard
         export_contacts_vcard(ctx.obj["ctc"].state_uri, out)
     elif what == "events" and fmt == "ics":
         export_events_ics(ctx.obj["cal"].state_uri, out)
