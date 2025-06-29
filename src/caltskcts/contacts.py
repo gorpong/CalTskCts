@@ -76,7 +76,7 @@ class Contacts(StateManagerBase[ContactData]):
         Raises:
             ValueError: If contact_id already exists or validation fails
         """
-        if not contact_id:
+        if contact_id is None:
             contact_id = self._get_next_id()
 
         contact_data: MutableMapping[str, Any] = {

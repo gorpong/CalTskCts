@@ -65,7 +65,7 @@ class Calendar(StateManagerBase[EventData]):
         Raises:
             ValueError: If event_id exists or validation fails
         """
-        if not event_id:
+        if event_id is None:
             event_id = self._get_next_id()
             
         event_data: MutableMapping[str, Any] = {

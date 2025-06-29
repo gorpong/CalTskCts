@@ -71,7 +71,7 @@ class Tasks(StateManagerBase[TaskData]):
         Raises:
             ValueError: If task_id already exists or validation fails
         """
-        if not task_id:
+        if  task_id is None:
             task_id = self._get_next_id()
         
         task_data: MutableMapping[str, Any] = {
