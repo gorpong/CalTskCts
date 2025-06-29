@@ -107,12 +107,18 @@ def main(argv: Optional[List[str]] = None) -> None:
         args.remaining = args.remaining[1:]
         
     cal, tsk, ctc, storage_type = setup_storage(args)
+    cli_cmds = ["cal", "tsk", "ctc", "raw", "import", "export"]
     if args.remaining and (
-        args.remaining[0] in ("cal", "tsk", "ctc", "raw")
+        args.remaining[0] in cli_cmds
         or "--help" in args.remaining
         or "-h" in args.remaining
     ):
-        context = {"cal": cal, "tsk": tsk, "ctc": ctc, "result": [None]}
+        context = {
+            "cal": cal, 
+            "tsk": tsk, 
+            "ctc": ctc, 
+            "result": [None]
+        }
         try:
             cli_app(prog_name="caltskcts", args=args.remaining, standalone_mode=False, obj=context)
         except Exception as e:

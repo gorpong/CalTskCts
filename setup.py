@@ -22,6 +22,8 @@ setup(
         "Flask>=2.0",
         "typer>=0.9.0",
         "click>=8.1.0",
+        "icalendar>=4.1.0",
+        "vobject>=0.9.6",
         "psycopg[binary]"
     ],
     classifiers=[

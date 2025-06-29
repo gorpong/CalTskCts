@@ -2,25 +2,29 @@
 import json
 from typing import Any, Optional, List
 import typer
+from pathlib import Path
 from caltskcts.dispatch_utils import dispatch_command
+from caltskcts.import_export import (
+    export_contacts_csv, import_contacts_csv, import_contacts_vcard,
+    export_events_ics,  import_events_ics,
+    export_tasks_csv,  import_tasks_csv
+)
 
 app = typer.Typer(help="Calendar, Tasks, and Contacts Manager", context_settings={"obj": {}})
-
-# Sub-applications for grouping commands
-cal_app = typer.Typer(help="Commands for calendar events")
-tsk_app = typer.Typer(help="Commands for tasks")
-ctc_app = typer.Typer(help="Commands for contacts")
-
-app.add_typer(cal_app, name="cal")
-app.add_typer(tsk_app, name="tsk")
-app.add_typer(ctc_app, name="ctc")
 
 @app.callback()
 def main(ctx: typer.Context):
     """
     CLI entry point. All storage and stuff passed by __main__, and ctx.obj as well
+    Needed so Flask/Click/Typer knows this is a group and can
+    accept commands.
     """
     pass
+
+# Sub-applications for grouping commands
+cal_app = typer.Typer(help="Commands for calendar events")
+tsk_app = typer.Typer(help="Commands for tasks")
+ctc_app = typer.Typer(help="Commands for contacts")
 
 # ------- Calendar Commands -------
 @cal_app.command("add_event", help="Add a new event to the calendar")
@@ -338,7 +342,12 @@ def get_contact(
     contacts = ctc.get_contact(contact_id=id)
     typer.echo(contacts)
 
-# ------- Raw Bridge Command -------
+# ------- Link the sub-commands -------
+app.add_typer(cal_app, name="cal")
+app.add_typer(tsk_app, name="tsk")
+app.add_typer(ctc_app, name="ctc")
+
+# ------- Root level commands -------
 @app.command("raw", help="Raw commands to bridge when CLI doesn't yet support, e.g, (raw 'cal.find_next_available(start_datetime='01/01/1990 10:30')")
 def raw(
     ctx: typer.Context,
@@ -350,6 +359,54 @@ def raw(
         typer.echo(json.dumps(result, indent=2, default=str))
     except Exception as e:
         typer.echo(f"Error: {e}")
+
+@app.command("export", help="Export contacts/events/tasks to CSV/ICS")
+def export(
+    ctx: typer.Context,
+    what: str = typer.Argument(..., help="contacts | events | tasks"),
+    fmt:  str = typer.Option(..., "--format", "-f", help="csv | ics | vcard"),
+    out:  Path = typer.Option(..., "--output", "-o", help="Output file"),
+):
+    """
+    Export contacts/events/tasks into the given format.
+    """
+    if what == "contacts" and fmt == "csv":
+        export_contacts_csv(ctx.obj["ctc"].state_uri, out)
+    elif what == "contacts" and fmt == "vcard":
+        from caltskcts.import_export import export_contacts_vcard
+        export_contacts_vcard(ctx.obj["ctc"].state_uri, out)
+    elif what == "events" and fmt == "ics":
+        export_events_ics(ctx.obj["cal"].state_uri, out)
+    elif what == "tasks" and fmt == "csv":
+        export_tasks_csv(ctx.obj["cal"].state_uri, out)
+    else:
+        typer.echo("Unsupported combination", err=True)
+        raise typer.Exit(1)
+
+@app.command("import", help="Import contacts/events/tasks from CSV/ICS")
+def import_(
+    ctx: typer.Context,
+    what: str = typer.Argument(..., help="contacts | events | tasks"),
+    in_:   Path = typer.Argument(..., help="Input file"),
+):
+    """
+    Import from CSV/ICS into your state.
+    """
+    if what == "contacts":
+        if in_.suffix.lower() == ".vcf":
+            ids = import_contacts_vcard(ctx.obj["ctc"].state_uri, in_)
+        else:
+            ids = import_contacts_csv(ctx.obj["ctc"].state_uri, in_)
+    elif what == "events":
+        ids = import_events_ics(ctx.obj["cal"].state_uri, in_)
+    elif what == "tasks":
+        ids = import_tasks_csv(ctx.obj["tsk"].state_uri, in_)
+    else:
+        typer.echo("Unsupported type", err=True)
+        raise typer.Exit(1)
+
+    typer.echo(f"Imported IDs: {ids}")
+
 
 if __name__ == "__main__":
     app()
