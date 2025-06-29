@@ -7,6 +7,8 @@ import pytest
 from caltskcts.import_export import (
     export_contacts_csv,
     import_contacts_csv,
+    export_contacts_vcard,
+    import_contacts_vcard,
     export_events_ics,
     import_events_ics,
     export_tasks_csv,
@@ -58,6 +60,43 @@ def test_contacts_csv_roundtrip(tmp_path):
     assert rec["first_name"] == "Alice"
     assert rec["last_name"]  == "Smith"
     assert rec["email"]      == "alice@example.com"
+
+def test_contacts_vcard_roundtrip(tmp_path):
+    db1 = tmp_path / "db1.db"
+    uri1 = sqlite_uri(db1)
+    original_data = [
+        {"first_name":"Alice","last_name":"Wonder","email":"a@b.com"},
+        {"first_name":"Bob","last_name":"Jones","mobile_phone":"+1-800-555-1212"},
+        {"first_name":"Carol","last_name":"Smith","company":"Acme Inc.","work_phone":"123-456-7890"},
+    ]
+
+    mgr1 = Contacts(uri1)
+    original_ids = []
+    for payload in original_data:
+        msg = mgr1.add_contact(**payload)
+        original_ids.append(_extract_id(msg))
+
+    vcf_path = tmp_path / "contacts.vcf"
+    export_contacts_vcard(uri1, vcf_path)
+
+    db2 = tmp_path / "db2.db"
+    uri2 = sqlite_uri(db2)
+    imported_ids = import_contacts_vcard(uri2, vcf_path)
+
+    assert imported_ids == original_ids
+
+    mgr2 = Contacts(uri2)
+    reloaded = [mgr2.get_contact(cid) for cid in imported_ids]
+
+    for orig, reloaded_dict in zip(original_data, reloaded):
+        for key, val in orig.items():
+            assert reloaded_dict[key] == val
+
+        assert isinstance(reloaded_dict["id"], int)
+
+        extra_keys = set(reloaded_dict) - set(orig) - {"id"}
+        for key in extra_keys:
+            assert reloaded_dict[key] in (None, "")
 
 def test_contacts_import_bad_header(tmp_path):
     bad = tmp_path / "bad_contacts.csv"
