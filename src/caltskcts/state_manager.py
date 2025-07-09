@@ -1,5 +1,6 @@
 import json
 import re
+import os
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Type, TypeVar, Generic
 from datetime import date, datetime
@@ -98,22 +99,36 @@ class StateManagerBase(ABC, Generic[ModelType]):
         """
         state: Dict[int, Any] = {}
         lock = FileLock(self.state_file + ".lock", timeout=2)
+        acquired = False
         try:
-            with lock:
-                try:
-                    with open(self.state_file, "r") as f:
-                        data = json.load(f)
-                except FileNotFoundError:
-                    self.logger.warning(f"State file not found: {self.state_file}. Using empty state.")
-                    data = {}
-                except json.JSONDecodeError as e:
-                    log_exception(e, f"Error parsing JSON file: {self.state_file}")
-                    data: Dict[str, Any] = {}
-                # convert string keys back to ints
-                state = {int(k): v for k, v in data.items()}
-                self.logger.info(f"Loaded {len(state)} items from JSON file '{self.state_file}'")
+            lock.acquire()
+            acquired = True
+            try:
+                with open(self.state_file, "r") as f:
+                    data = json.load(f)
+            except FileNotFoundError:
+                self.logger.warning(f"State file not found: {self.state_file}. Using empty state.")
+                data = {}
+            except json.JSONDecodeError as e:
+                log_exception(e, f"Error parsing JSON file: {self.state_file}")
+                data: Dict[str, Any] = {}
+            # convert string keys back to ints
+            state = {int(k): v for k, v in data.items()}
+            self.logger.info(f"Loaded {len(state)} items from JSON file '{self.state_file}'")
+
         except Timeout:
             self.logger.error(f"Could not acquire lock for reading {self.state_file}")
+        finally:
+            if acquired:
+                try:
+                    lock.release()
+                except Exception:
+                    pass
+                try:
+                    os.remove(lock.lock_file)
+                except FileNotFoundError:
+                    pass
+    
         return state
 
     def _save_state_file(self) -> None:
@@ -122,27 +137,20 @@ class StateManagerBase(ABC, Generic[ModelType]):
         merge in self._state, and write the combined dict back out.
         """
         lock = FileLock(self.state_file + ".lock", timeout=2)
+        acquired = False
         try:
-            with lock:
-                # read existing file so we don't clobber others' writes
-                try:
-                    with open(self.state_file, "r") as f:
-                        existing = json.load(f)
-                except (FileNotFoundError, json.JSONDecodeError):
-                    existing = {}
-                    
-                # Snapshot in-memory state right now
-                snapshot = {str(k): v for k, v in self._state.items()}
-                
-                # merge snapshot into existing from disk
-                existing.update(snapshot) # type: ignore
-
-                # write out full merged state
-                with open(self.state_file, "w") as f:
-                    json.dump(existing, f, indent=4, default=self._json_default)
-                
-                # reflect that merged state back into current
-                self._state = {int(k): v for k, v in existing.items()}  # type: ignore
+            lock.acquire()
+            acquired = True
+            try:
+                with open(self.state_file, "r") as f:
+                    existing = json.load(f)
+            except (FileNotFoundError, json.JSONDecodeError):
+                existing = {}
+            snapshot = {str(k): v for k, v in self._state.items()}
+            existing.update(snapshot) # type: ignore
+            with open(self.state_file, "w") as f:
+                json.dump(existing, f, indent=4, default=self._json_default)
+            self._state = {int(k): v for k, v in existing.items()}  # type: ignore
                 
         except Timeout:
             self.logger.error(f"Could not acquire lock for writing {self.state_file}")
@@ -150,24 +158,35 @@ class StateManagerBase(ABC, Generic[ModelType]):
         except Exception as e:
             log_exception(e, f"Failed to save state to {self.state_file}")
             raise
+        finally:
+            if acquired:
+                try:
+                    lock.release()
+                except Exception:
+                    pass
+                try:
+                    os.remove(lock.lock_file)
+                except (OSError, FileNotFoundError):
+                    pass
         
     def _save_one_file(self, item_id: int, item_data: Any) -> None:
         """Insert or update a single record in the JSON file, under lock."""
         lock = FileLock(self.state_file + ".lock", timeout=2)
+        acquired = False
         try:
-            with lock:
-                try:
-                    with open(self.state_file, "r") as f:
-                        data = json.load(f)
-                except (FileNotFoundError, json.JSONDecodeError):
-                    data = {}
+            lock.acquire()
+            acquired = True
+            try:
+                with open(self.state_file, "r") as f:
+                    data = json.load(f)
+            except (FileNotFoundError, json.JSONDecodeError):
+                data = {}
 
-                data[str(item_id)] = item_data
-                with open(self.state_file, "w") as f:
-                    json.dump(data, f, indent=4, default=self._json_default)
-
-                # reflect back into memory
-                self._state = {int(k): v for k, v in data.items()} # type: ignore
+            data[str(item_id)] = item_data
+            with open(self.state_file, "w") as f:
+                json.dump(data, f, indent=4, default=self._json_default)
+        
+            self._state = {int(k): v for k, v in data.items()} # type: ignore
 
         except Timeout:
             self.logger.error(f"Could not acquire lock for writing {self.state_file}")
@@ -175,24 +194,35 @@ class StateManagerBase(ABC, Generic[ModelType]):
         except Exception as e:
             log_exception(e, f"Failed to save one record to {self.state_file}")
             raise
+        finally:
+            if acquired:
+                try:
+                    lock.release()
+                except Exception:
+                    pass
+                try:
+                    os.remove(lock.lock_file)
+                except (OSError, FileNotFoundError):
+                    pass
     
     def _delete_one_file(self, item_id: int) -> None:
         """Delete a single record from the JSON file, under lock."""
         lock = FileLock(self.state_file + ".lock", timeout=2)
+        acquired = False
         try:
-            with lock:
-                try:
-                    with open(self.state_file, "r") as f:
-                        data = json.load(f)
-                except (FileNotFoundError, json.JSONDecodeError):
-                    data = {}
+            lock.acquire()
+            acquired = True
+            try:
+                with open(self.state_file, "r") as f:
+                    data = json.load(f)
+            except (FileNotFoundError, json.JSONDecodeError):
+                data = {}
 
-                data.pop(str(item_id), None) # type: ignore
-                with open(self.state_file, "w") as f:
-                    json.dump(data, f, indent=4, default=self._json_default)
+            data.pop(str(item_id), None) # type: ignore
+            with open(self.state_file, "w") as f:
+                json.dump(data, f, indent=4, default=self._json_default)
 
-                # reflect back into memory
-                self._state = {int(k): v for k, v in data.items()} # type: ignore
+            self._state = {int(k): v for k, v in data.items()} # type: ignore
 
         except Timeout:
             self.logger.error(f"Could not acquire lock for writing {self.state_file}")
@@ -200,6 +230,16 @@ class StateManagerBase(ABC, Generic[ModelType]):
         except Exception as e:
             log_exception(e, f"Failed to delete one record from {self.state_file}")
             raise
+        finally:
+            if acquired:
+                try:
+                    lock.release()
+                except Exception:
+                    pass
+                try:
+                    os.remove(lock.lock_file)
+                except (OSError, FileNotFoundError):
+                    pass
         
     # ----------------------
     # Shared CRUD entry points

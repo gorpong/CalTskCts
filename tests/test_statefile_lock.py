@@ -105,5 +105,19 @@ class TestLocking(unittest.TestCase):
         self.assertNotIn(0, data)
         self.assertIn(1, data)
 
+    def test_lock_released_after_save(self):
+        """After _save_state_file completes, the lock file should be removed."""
+        # Prepare a dummy manager and populate its state
+        mgr = Dummy(self.path)
+        mgr._state = {42: "answer"}
+
+        # Call the save. If the lock isn't released, the .lock file will remain.
+        mgr._save_state_file()
+
+        # Immediately after saving, the lock file should not exist.
+        lock_path = self.path + ".lock"
+        self.assertFalse(os.path.exists(lock_path),
+                         f"Lock file {lock_path} should have been removed after save")
+
 if __name__ == "__main__":
     unittest.main()
