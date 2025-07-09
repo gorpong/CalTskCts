@@ -8,3 +8,4 @@ __pycache__/
 /.calTskCts_history
 /logs/
 /data/app.db
+new.db
