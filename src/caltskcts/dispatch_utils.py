@@ -1,43 +1,7 @@
-from typing import Dict, Any, List
+from typing import Dict, Any
 from caltskcts.logger import get_logger
 
 logger = get_logger(__name__)
-
-def get_command_map() -> Dict[str, List[str]]:
-    """Build command map for auto-completion"""
-    return {
-        "cal": [
-            "cal.add_event(title='', date='', duration=-1, users=[])",
-            "cal.find_next_available(start_datetime='', duration_minutes=-1)",
-            "cal.delete_event(event_id=-1)",
-            "cal.get_event(event_id=-1)",
-            "cal.list_events()",
-            "cal.get_events_by_date(date='')",
-            "cal.get_events_between(start_datetime='', end_datetime='')",
-            "cal.update_event(event_id=-1, title='', date='', duration=-1, users=[])",
-        ],
-        "tsk": [
-            "tsk.add_task(title='', description='', due_date='', progress=-1.0, state='Not Started')",
-            "tsk.update_task(task_id=-1, title='', description='', due_date='', progress=-1.0, state='')",
-            "tsk.delete_task(task_id=-1)",
-            "tsk.list_tasks()",
-            "tsk.get_task(task_id=-1)",
-            "tsk.get_tasks_due_today()",
-            "tsk.get_tasks_due_on(date='')",
-            "tsk.get_tasks_due_on_or_before(date='')",
-            "tsk.get_tasks_with_progress(min_progress=0.0, max_progress=100.0)",
-            "tsk.get_tasks_by_state(state='Not Started')",
-        ],
-        "ctc": [
-            "ctc.list_contacts()",
-            "ctc.add_contact(first_name='', last_name='', title='', company='', work_phone='', mobile_phone='', home_phone='', email='')",
-            "ctc.update_contact(contact_id=-1, first_name='', last_name='', company='', title='', work_phone='', mobile_phone='', home_phone='', email='')",
-            "ctc.delete_contact(contact_id=-1)",
-            "ctc.get_contact(contact_id=-1)",
-            "ctc.search_contacts(query='')",
-        ],
-    }
-
 
 def dispatch_command(command: str, context: Dict[str, Any]) -> Any:
     """Safely execute a command in the given context"""

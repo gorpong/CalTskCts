@@ -10,17 +10,59 @@ from caltskcts.import_export import (
     export_events_ics,  import_events_ics,
     export_tasks_csv,  import_tasks_csv
 )
+from caltskcts.calendars import Calendar
+from caltskcts.contacts  import Contacts
+from caltskcts.tasks     import Tasks
+from caltskcts.config    import (
+    get_database_uri, 
+    get_calendar_uri, 
+    get_contacts_uri, 
+    get_tasks_uri
+)
 
-app = typer.Typer(help="Calendar, Tasks, and Contacts Manager", context_settings={"obj": {}})
+app = typer.Typer(
+    help="Calendar, Tasks, and Contacts Manager", 
+    context_settings={"obj": {}},
+    invoke_without_command=True
+)
 
 @app.callback()
-def main(ctx: typer.Context):
+def main(
+    ctx: typer.Context,
+    file: bool = typer.Option(
+        False, "--file", "-f",
+        help="Use default JSON backend."
+    ),
+    db: Optional[str] = typer.Option(
+        None, "--db", "-d",
+        help="Database URL (e.g., sqlite:///foo.db)"
+    )
+    ):
     """
-    CLI entry point. All storage and stuff passed by __main__, and ctx.obj as well
-    Needed so Flask/Click/Typer knows this is a group and can
-    accept commands.
+    CLI entry point. Initialize storage. Exactly one of --file or --db allowed,
+    otherwise fallback to STATE_URI in config.
+    Needed so Flask/Click/Typer knows this is a group and can accept commands.
     """
-    pass
+    if file and db:
+        typer.echo("⛔️  Please specify only one of --file or --db", err=True)
+        raise typer.Exit(1)
+    
+    if file:
+        cal_uri = get_calendar_uri()
+        ctc_uri = get_contacts_uri()
+        tsk_uri = get_tasks_uri()
+        typer.echo(f"🔣 Using JSON backend.")
+    else:
+        state_uri = db if db is not None else get_database_uri()
+        if "://" not in state_uri:
+            state_uri = f"sqlite:///{state_uri}"
+        cal_uri = ctc_uri = tsk_uri = state_uri
+        typer.echo(f"🗄 Using DB backend: {state_uri}")
+
+    ctx.obj["cal"] = Calendar(cal_uri)
+    ctx.obj["tsk"] = Tasks(tsk_uri)
+    ctx.obj["ctc"] = Contacts(ctc_uri)
+    ctx.obj["result"] = {}
 
 # Sub-applications for grouping commands
 cal_app = typer.Typer(help="Commands for calendar events")

@@ -1,78 +1,76 @@
 import pytest
+import json
 from typer.testing import CliRunner
-from unittest.mock import patch, MagicMock
 from caltskcts.cli import app as cli_app
 
 runner = CliRunner()
 
 @pytest.fixture
-def mock_storage():
-    mock_cal = MagicMock()
-    mock_cal.add_event.return_value = {"id": 1, "title": "Test Event"}
-    mock_cal.list_events.return_value = [{"id": 1, "title": "Test Event"}]
+def temp_json_files(tmp_path, monkeypatch):
+    cal_path = tmp_path / "_calendar.json"
+    tsk_path = tmp_path / "_tasks.json"
+    ctc_path = tmp_path / "_contacts.json"
+    
+    cal_data = {
+        "1": { "title": "Existing Meeting", "date": "12/31/2025 14:00","duration": 60, "users": ["Alice"] },
+        "2": { "title": "Daily Standup", "date": "12/30/2025 09:00", "duration": 30, "users": [] }
+    }
+    ctc_data = {
+        "1": { "first_name": "Alice", "last_name": "Smith", "email": "alice@example.com" },
+        "2": { "first_name": "Fred", "last_name": "Smythe", "email": "fsmythe@example.com" }
+    }
+    tsk_data = {
+        "1": { "title": "Important thing", "desc": "Very Important description", "dueDate": "12/31/2025", "progress": 50.0, "state": "In Progress" }
+    }
+    cal_path.write_text(json.dumps(cal_data, indent=2))
+    ctc_path.write_text(json.dumps(ctc_data, indent=2))
+    tsk_path.write_text(json.dumps(tsk_data, indent=2))
+    
+    monkeypatch.setenv("CALTSKCTS_CALENDAR_FILE", str(cal_path))
+    monkeypatch.setenv("CALTSKCTS_CONTACTS_FILE", str(ctc_path))
+    monkeypatch.setenv("CALTSKCTS_TASKS_FILE", str(tsk_path))
+    
+    return {"calendar": cal_path, "tasks": tsk_path, "contacts": ctc_path}
 
-    mock_tsk = MagicMock()
-    mock_tsk.add_task.return_value = {"id": 1, "title": "Test Task"}
-    mock_tsk.list_tasks.return_value = [{"id": 1, "title": "Test Task"}]
 
-    mock_ctc = MagicMock()
-    mock_ctc.add_contact.return_value = {"id": 1, "first_name": "John", "last_name": "Doe"}
-    mock_ctc.list_contacts.return_value = [{"id": 1, "first_name": "John", "last_name": "Doe"}]
-
-    context = {"cal": mock_cal, "tsk": mock_tsk, "ctc": mock_ctc, "result": [None]}
-    return context
-
-@pytest.fixture
-def dummy_context():
-    class Dummy:
-        def list_events(self): return [{"id": 1}]
-        def list_tasks(self): return [{"id": 2}]
-        def list_contacts(self): return [{"id": 3}]
-
-    dummy = Dummy()
-    return {"cal": dummy, "tsk": dummy, "ctc": dummy, "result": [None]}
-
-def test_raw_cal_command(dummy_context):
-    result = runner.invoke(cli_app, ["raw", "cal.list_events()"], obj=dummy_context)
+def test_raw_cal_command(temp_json_files):
+    result = runner.invoke(cli_app, ["--file", "raw", "cal.list_events()"])
     assert result.exit_code == 0
-    assert '"id": 1' in result.output
+    assert "Existing Meeting" in result.output
 
-def test_raw_task_command(dummy_context):
-    result = runner.invoke(cli_app, ["raw", "tsk.list_tasks()"], obj=dummy_context)
+def test_raw_task_command(temp_json_files):
+    result = runner.invoke(cli_app, ["--file", "raw", "tsk.list_tasks()"])
     assert result.exit_code == 0
-    assert '"id": 2' in result.output
+    assert "Important thing" in result.output
 
-def test_raw_contact_command(dummy_context):
-    result = runner.invoke(cli_app, ["raw", "ctc.list_contacts()"], obj=dummy_context)
+def test_raw_contact_command(temp_json_files):
+    result = runner.invoke(cli_app, ["--file", "raw", "ctc.list_contacts()"])
     assert result.exit_code == 0
-    assert '"id": 3' in result.output
+    assert "Smythe" in result.output
 
-def test_add_event(mock_storage):
-    result = runner.invoke(cli_app, ["cal", "add_event", "--title", "Test Event", "--date", "01/01/2025 10:00"], obj=mock_storage)
+def test_add_event(temp_json_files):
+    result = runner.invoke(cli_app, ["--file", "cal", "add_event", "--title", "Test Event", "--date", "01/01/2025 10:00"])
+    assert result.exit_code == 0
+    assert "Added" in result.stdout
+    result = runner.invoke(cli_app, ["--file", "cal", "list_events"])
     assert result.exit_code == 0
     assert "Test Event" in result.stdout
 
-def test_list_events(mock_storage):
-    result = runner.invoke(cli_app, ["cal", "list_events"], obj=mock_storage)
+def test_add_contact(temp_json_files):
+    result = runner.invoke(cli_app, ["--file", "ctc", "add_contact", "-f", "Joe", "-l", "Bob Briggs"])
     assert result.exit_code == 0
-    assert "Test Event" in result.stdout
+    assert "added" in result.stdout
+    result = runner.invoke(cli_app, ["--file", "ctc", "list_contacts"])
+    assert result.exit_code == 0
+    assert "3:" in result.stdout 
+    assert "Briggs" in result.stdout
 
-def test_add_task(mock_storage):
-    result = runner.invoke(cli_app, ["tsk", "add_task", "--title", "Test Task"], obj=mock_storage)
+def test_delete_event(temp_json_files):
+    result = runner.invoke(cli_app, ["--file", "cal", "list_events"])
     assert result.exit_code == 0
-    assert "Test Task" in result.stdout
-
-def test_list_tasks(mock_storage):
-    result = runner.invoke(cli_app, ["tsk", "list_tasks"], obj=mock_storage)
+    assert "Daily Standup" in result.stdout
+    result = runner.invoke(cli_app, ["--file", "cal", "delete_event", "--event_id", "2"])
     assert result.exit_code == 0
-    assert "Test Task" in result.stdout
-
-def test_add_contact(mock_storage):
-    result = runner.invoke(cli_app, ["ctc", "add_contact", "--first", "John", "--last", "Doe"], obj=mock_storage)
+    result = runner.invoke(cli_app, ["--file", "cal", "list_events"])
     assert result.exit_code == 0
-    assert "John" in result.stdout
-
-def test_list_contacts(mock_storage):
-    result = runner.invoke(cli_app, ["ctc", "list_contacts"], obj=mock_storage)
-    assert result.exit_code == 0
-    assert "John" in result.stdout
+    assert "Daily Standup" not in result.stdout    
