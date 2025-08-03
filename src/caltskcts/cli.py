@@ -33,31 +33,39 @@ def main(
         False, "--file", "-f",
         help="Use default JSON backend."
     ),
-    db: Optional[str] = typer.Option(
-        None, "--db", "-d",
-        help="Database URL (e.g., sqlite:///foo.db)"
+    db: bool = typer.Option(
+        False, "--db", "-d",
+        help="Use SQLite backend (not JSON files)."
+    ),
+    db_path: str = typer.Option(
+        get_database_uri(), "--db-path", "--path",
+        help="(*) Path to the SQLite DB file (or default if not provided)."
     )
-    ):
+):
     """
     CLI entry point. Initialize storage. Exactly one of --file or --db allowed,
-    otherwise fallback to STATE_URI in config.
+    otherwise fallback to JSON files (default).
     Needed so Flask/Click/Typer knows this is a group and can accept commands.
     """
     if file and db:
         typer.echo("⛔️  Please specify only one of --file or --db", err=True)
         raise typer.Exit(1)
     
-    if file:
-        cal_uri = get_calendar_uri()
-        ctc_uri = get_contacts_uri()
-        tsk_uri = get_tasks_uri()
-        typer.echo(f"🔣 Using JSON backend.")
-    else:
-        state_uri = db if db is not None else get_database_uri()
+    if not file and not db:
+        file = True
+    
+    if db:
+        state_uri = db_path.strip()
         if "://" not in state_uri:
             state_uri = f"sqlite:///{state_uri}"
         cal_uri = ctc_uri = tsk_uri = state_uri
         typer.echo(f"🗄 Using DB backend: {state_uri}")
+    else:
+        # Default to JSON files (whether --files specified or not)
+        cal_uri = get_calendar_uri()
+        ctc_uri = get_contacts_uri()
+        tsk_uri = get_tasks_uri()
+        typer.echo(f"🔣 Using JSON backend.")
 
     ctx.obj["cal"] = Calendar(cal_uri)
     ctx.obj["tsk"] = Tasks(tsk_uri)

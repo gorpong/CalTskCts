@@ -4,17 +4,29 @@ from flask import Flask, jsonify, request, abort
 from caltskcts.contacts import Contacts
 from caltskcts.calendars import Calendar
 from caltskcts.tasks import Tasks
+from caltskcts.config import (
+    get_calendar_uri,
+    get_contacts_uri,
+    get_tasks_uri
+)
 
 def create_app():
     app = Flask(__name__)
 
-    # read from env or fall back to JSON files
-    state_uri = os.getenv("STATE_URI", "sqlite:///:memory:")
+    # Check if STATE_URI is provided, otherwise use JSON files
+    state_uri = os.getenv("STATE_URI")
 
+    if state_uri:
+        cal_uri = ctc_uri = tsk_uri = state_uri
+    else:
+        cal_uri = get_calendar_uri()
+        ctc_uri = get_contacts_uri()
+        tsk_uri = get_tasks_uri()
+        
     # instantiate one manager of each type
-    contacts = Contacts(state_uri)
-    cal      = Calendar(state_uri)
-    tasks    = Tasks(state_uri)
+    contacts = Contacts(ctc_uri)
+    cal      = Calendar(cal_uri)
+    tasks    = Tasks(tsk_uri)
 
     # ===== Helper Method ==========
     def _extract_id(msg: str) -> int:
