@@ -1,6 +1,6 @@
 import os
 import re
-from flask import Flask, jsonify, request, abort, render_template, send_from_directory
+from flask import Flask, jsonify, request, abort, send_from_directory
 from caltskcts.contacts import Contacts
 from caltskcts.calendars import Calendar
 from caltskcts.tasks import Tasks
@@ -9,12 +9,9 @@ from caltskcts.config import get_database_uri
 def create_app():
     # Get the directory where this file lives
     base_dir = os.path.dirname(os.path.abspath(__file__))
+    static_dir = os.path.join(base_dir, 'static')
     
-    app = Flask(
-        __name__,
-        static_folder=os.path.join(base_dir, 'static'),
-        template_folder=os.path.join(base_dir, 'templates')
-    )
+    app = Flask(__name__, static_folder=static_dir, static_url_path='')
 
     # read from env or fall back to JSON files
     state_uri = get_database_uri()
@@ -38,17 +35,16 @@ def create_app():
     # ===== FRONTEND ROUTES =====
 
     @app.route("/")
-    def index():
+    def serve_frontend():
         """Serve the main frontend application"""
-        return render_template("index.html")
+        return send_from_directory(static_dir, 'index.html')
 
-    @app.route("/assets/<path:filename>")
-    def serve_assets(filename):
-        """Serve static assets (images, fonts, etc.)"""
-        return send_from_directory(
-            os.path.join(app.static_folder, 'assets'), 
-            filename
-        )
+    @app.route("/<path:path>")
+    def serve_static(path):
+        """Serve static files, fallback to index.html for SPA routing"""
+        if os.path.exists(os.path.join(static_dir, path)):
+            return send_from_directory(static_dir, path)
+        return send_from_directory(static_dir, 'index.html')
 
     # ===== CONTACTS ENDPOINTS =====
 
