@@ -1,6 +1,7 @@
 venv
 __pycache__/
 .python-version
+node_modules/
 *.egg-info/
 /_calendar.json*
 /_tasks.json*

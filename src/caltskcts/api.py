@@ -1,15 +1,23 @@
 import os
 import re
-from flask import Flask, jsonify, request, abort
+from flask import Flask, jsonify, request, abort, render_template, send_from_directory
 from caltskcts.contacts import Contacts
 from caltskcts.calendars import Calendar
 from caltskcts.tasks import Tasks
+from caltskcts.config import get_database_uri
 
 def create_app():
-    app = Flask(__name__)
+    # Get the directory where this file lives
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    app = Flask(
+        __name__,
+        static_folder=os.path.join(base_dir, 'static'),
+        template_folder=os.path.join(base_dir, 'templates')
+    )
 
     # read from env or fall back to JSON files
-    state_uri = os.getenv("STATE_URI", "sqlite:///:memory:")
+    state_uri = get_database_uri()
 
     # instantiate one manager of each type
     contacts = Contacts(state_uri)
@@ -26,6 +34,21 @@ def create_app():
         if not m:
             raise ValueError(f"Could not parse ID from message: {msg!r}")
         return int(m.group(1))
+
+    # ===== FRONTEND ROUTES =====
+
+    @app.route("/")
+    def index():
+        """Serve the main frontend application"""
+        return render_template("index.html")
+
+    @app.route("/assets/<path:filename>")
+    def serve_assets(filename):
+        """Serve static assets (images, fonts, etc.)"""
+        return send_from_directory(
+            os.path.join(app.static_folder, 'assets'), 
+            filename
+        )
 
     # ===== CONTACTS ENDPOINTS =====
 

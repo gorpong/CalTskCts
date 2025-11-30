@@ -12,7 +12,9 @@ from caltskcts.state_manager import Base
 from caltskcts.contacts import ContactData
 from caltskcts.calendars import EventData
 from caltskcts.tasks import TaskData
-from caltskcts.config import DATABASE_URI
+from caltskcts.config import get_database_uri
+
+DATABASE_URI = get_database_uri()
 
 # Helper to load JSON file
 def load_json(path: str) -> dict:
