@@ -5,47 +5,70 @@ This project provides an interactive command-line tool for managing list-based i
 ## Project Structure
 
 ```text
-CalTskCts
+CalTskCts/
 ├── data
 │   └── app.db
+├── frontend
+│   ├── index.html
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── postcss.config.js
+│   ├── src
+│   │   ├── App.jsx
+│   │   ├── index.css
+│   │   ├── index.jsx
+│   │   └── main.jsx
+│   ├── tailwind.config.js
+│   └── vite.config.js
 ├── LICENSE
 ├── logging_config.json
 ├── logging_demo.py
 ├── logs
-│   ├── calmsgcts.log
+│   ├── caltskcts.log
 │   └── tasks.log
 ├── pytest.ini
 ├── README.md
 ├── requirements.txt
+├── scripts
+│   └── build_db.py
 ├── setup.py
 ├── src
 │   └── caltskcts
+│       ├── api.py
 │       ├── calendars.py
+│       ├── cli.py
 │       ├── config.py
 │       ├── constants.py
 │       ├── contacts.py
+│       ├── dispatch_utils.py
+│       ├── import_export.py
 │       ├── __init__.py
 │       ├── logger_config.py
 │       ├── logger.py
 │       ├── __main__.py
-|       ├── schemas.py
+│       ├── schemas.py
 │       ├── state_manager.py
-│       └── tasks.py
+│       ├── tasks.py
+│       └── templates
+│           └── index.html
 ├── templates
+│   ├── app.db
 │   ├── _calendar.json
 │   ├── _contacts.json
 │   └── _tasks.json
 └── tests
     ├── __init__.py
-    ├── test_calendars_edge_cases.py
+    ├── test_api.py
     ├── test_calendars.py
-    ├── test_calendars_with_mocks.py
-    ├── test_contacts_db_with_mocks.py
-    ├── test_contacts_edge_cases.py
+    ├── test_cli_flags.py
+    ├── test_cli.py
     ├── test_contacts.py
-    ├── test_contacts_with_mocks.py
-    ├── test_tasks.py
-    └── test_tasks_with_mocks.py
+    ├── test_db_persistence.py
+    ├── test_import_export.py
+    ├── test_main.py
+    ├── test_statefile_lock.py
+    ├── test_statefile_persistence.py
+    └── test_tasks.py
 ```
 
 ## Installation

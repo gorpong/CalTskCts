@@ -34,6 +34,15 @@
             "maxBytes": 5242880,
             "backupCount": 5,
             "encoding": "utf8"
+        },
+        "calFile": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "level": "DEBUG",
+            "formatter": "detailed",
+            "filename": "logs/calendar.log",
+            "maxBytes": 5242880,
+            "backupCount": 5,
+            "encoding": "utf8"
         }
     },
     "loggers": {
@@ -45,6 +54,11 @@
         "Tasks": {
             "level": "DEBUG",
             "handlers": ["console", "file", "tskFile"],
+            "propagate": false
+        },
+        "Calendar": {
+            "level": "DEBUG",
+            "handlers": ["console", "file", "calFile"],
             "propagate": false
         }
     },
