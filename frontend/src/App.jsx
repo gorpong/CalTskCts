@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, CheckSquare, Users, Plus, Search, Edit2, Trash2, X, Clock, Filter, ChevronLeft, ChevronRight, AlertTriangle, ArrowUpNarrowWide, ArrowDownWideNarrow, Loader2 } from 'lucide-react';
-
+import { Calendar, CheckSquare, Users, Plus, Search, Edit2, Trash2, X, Clock, Filter, ChevronLeft, ChevronRight, AlertTriangle, ArrowUpNarrowWide, ArrowDownWideNarrow, Loader2, Zap } from 'lucide-react';
 const TASK_STATES = ['Not Started', 'In Progress', 'Completed', 'Canceled'];
 
 const getTaskStateStyle = (state) => {
@@ -13,13 +12,22 @@ const getTaskStateStyle = (state) => {
   }
 };
 
-// API helper functions
 const api = {
+  // Helper to handle responses and throw on errors
+  async handleResponse(res) {
+    const data = await res.json();
+    if (!res.ok) {
+      // Throw the error message from the backend, or a default message
+      throw new Error(data.error || `Request failed with status ${res.status}`);
+    }
+    return data;
+  },
+
   // Contacts
   async getContacts(query = '') {
     const url = query ? `/contacts?q=${encodeURIComponent(query)}` : '/contacts';
     const res = await fetch(url);
-    return res.json();
+    return this.handleResponse(res);
   },
   async createContact(data) {
     const res = await fetch('/contacts', {
@@ -27,7 +35,7 @@ const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
-    return res.json();
+    return this.handleResponse(res);
   },
   async updateContact(id, data) {
     const res = await fetch(`/contacts/${id}`, {
@@ -35,11 +43,11 @@ const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
-    return res.json();
+    return this.handleResponse(res);
   },
   async deleteContact(id) {
     const res = await fetch(`/contacts/${id}`, { method: 'DELETE' });
-    return res.json();
+    return this.handleResponse(res);
   },
 
   // Events
@@ -53,7 +61,7 @@ const api = {
     }
     if (queryParams.toString()) url += `?${queryParams}`;
     const res = await fetch(url);
-    return res.json();
+    return this.handleResponse(res);
   },
   async createEvent(data) {
     const res = await fetch('/events', {
@@ -61,7 +69,7 @@ const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
-    return res.json();
+    return this.handleResponse(res);
   },
   async updateEvent(id, data) {
     const res = await fetch(`/events/${id}`, {
@@ -69,15 +77,15 @@ const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
-    return res.json();
+    return this.handleResponse(res);
   },
   async deleteEvent(id) {
     const res = await fetch(`/events/${id}`, { method: 'DELETE' });
-    return res.json();
+    return this.handleResponse(res);
   },
   async findNextAvailable(start, duration) {
     const res = await fetch(`/events/next-available?start=${encodeURIComponent(start)}&duration=${duration}`);
-    return res.json();
+    return this.handleResponse(res);
   },
 
   // Tasks
@@ -90,7 +98,7 @@ const api = {
     if (params.max_progress) queryParams.set('max_progress', params.max_progress);
     if (queryParams.toString()) url += `?${queryParams}`;
     const res = await fetch(url);
-    return res.json();
+    return this.handleResponse(res);
   },
   async createTask(data) {
     const res = await fetch('/tasks', {
@@ -98,7 +106,7 @@ const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
-    return res.json();
+    return this.handleResponse(res);
   },
   async updateTask(id, data) {
     const res = await fetch(`/tasks/${id}`, {
@@ -106,11 +114,49 @@ const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
-    return res.json();
+    return this.handleResponse(res);
   },
   async deleteTask(id) {
     const res = await fetch(`/tasks/${id}`, { method: 'DELETE' });
-    return res.json();
+    return this.handleResponse(res);
+  }
+};
+
+// Date format conversion helpers
+// Backend format: MM/DD/YYYY HH:MM (datetime) or MM/DD/YYYY (date)
+// HTML input format: YYYY-MM-DDTHH:MM (datetime-local) or YYYY-MM-DD (date)
+
+const dateHelpers = {
+  // Convert MM/DD/YYYY HH:MM to YYYY-MM-DDTHH:MM
+  toDateTimeLocal(backendDate) {
+    if (!backendDate) return '';
+    const [datePart, timePart] = backendDate.split(' ');
+    if (!datePart) return '';
+    const [month, day, year] = datePart.split('/');
+    const time = timePart || '00:00';
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${time}`;
+  },
+
+  // Convert YYYY-MM-DDTHH:MM to MM/DD/YYYY HH:MM
+  fromDateTimeLocal(localDate) {
+    if (!localDate) return '';
+    const [datePart, timePart] = localDate.split('T');
+    const [year, month, day] = datePart.split('-');
+    return `${month}/${day}/${year} ${timePart}`;
+  },
+
+  // Convert MM/DD/YYYY to YYYY-MM-DD
+  toDateLocal(backendDate) {
+    if (!backendDate) return '';
+    const [month, day, year] = backendDate.split('/');
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  },
+
+  // Convert YYYY-MM-DD to MM/DD/YYYY
+  fromDateLocal(localDate) {
+    if (!localDate) return '';
+    const [year, month, day] = localDate.split('-');
+    return `${month}/${day}/${year}`;
   }
 };
 
@@ -130,6 +176,19 @@ const App = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState({ show: false, id: null, type: '', itemName: '' });
   const [progressSort, setProgressSort] = useState(null);
+
+  const [showFindAvailable, setShowFindAvailable] = useState(false);
+  const [findAvailableStart, setFindAvailableStart] = useState('');
+  const [findAvailableDuration, setFindAvailableDuration] = useState(30);
+  const [findAvailableResult, setFindAvailableResult] = useState(null);
+  const [findAvailableLoading, setFindAvailableLoading] = useState(false);
+
+  // For the in-modal version
+  const [modalFindExpanded, setModalFindExpanded] = useState(false);
+  const [modalFindStart, setModalFindStart] = useState('');
+  const [modalFindDuration, setModalFindDuration] = useState(30);
+  const [modalFindResult, setModalFindResult] = useState(null);
+  const [modalFindLoading, setModalFindLoading] = useState(false);
 
   // Load data on mount and tab change
   useEffect(() => {
@@ -167,14 +226,92 @@ const App = () => {
   const openEditModal = (item) => { 
     setModalType('edit'); 
     setEditItem(item); 
-    setFormData({ ...item });
+    
+    // Convert dates to HTML input format when editing
+    const formDataWithConvertedDates = { ...item };
+    
+    if (activeTab === 'calendar' && item.date) {
+      formDataWithConvertedDates.dateTimeLocal = dateHelpers.toDateTimeLocal(item.date);
+    }
+    
+    if (activeTab === 'tasks' && item.dueDate) {
+      formDataWithConvertedDates.dueDateLocal = dateHelpers.toDateLocal(item.dueDate);
+    }
+    
+    setFormData(formDataWithConvertedDates);
     setShowModal(true); 
   };
 
+  // Handler for header "Find Available" panel
+  const handleFindAvailable = async () => {
+    if (!findAvailableStart) {
+      alert('Please select a starting date/time');
+      return;
+    }
+    setFindAvailableLoading(true);
+    try {
+      const startFormatted = dateHelpers.fromDateTimeLocal(findAvailableStart);
+      const result = await api.findNextAvailable(startFormatted, findAvailableDuration);
+      setFindAvailableResult(result.available_time);
+    } catch (err) {
+      console.error('Find available failed:', err);
+      alert(err.message || 'Failed to find available time.');
+    }
+    setFindAvailableLoading(false);
+  };
+
+  // Use the result from header panel and open Add modal
+  const useFindAvailableResult = () => {
+    setFormData({
+      dateTimeLocal: dateHelpers.toDateTimeLocal(findAvailableResult),
+      duration: findAvailableDuration
+    });
+    setShowFindAvailable(false);
+    setFindAvailableResult(null);
+    setModalType('add');
+    setEditItem(null);
+    setShowModal(true);
+  };
+
+  // Handler for in-modal "Find Available"
+  const handleModalFindAvailable = async () => {
+    if (!modalFindStart) {
+      alert('Please select a starting date/time');
+      return;
+    }
+    setModalFindLoading(true);
+    try {
+      const startFormatted = dateHelpers.fromDateTimeLocal(modalFindStart);
+      const result = await api.findNextAvailable(startFormatted, modalFindDuration);
+      setModalFindResult(result.available_time);
+    } catch (err) {
+      console.error('Find available failed:', err);
+      alert(err.message || 'Failed to find available time.');
+    }
+    setModalFindLoading(false);
+  };
+
+  // Use the result from in-modal panel
+  const useModalFindResult = () => {
+    setFormData(prev => ({
+      ...prev,
+      dateTimeLocal: dateHelpers.toDateTimeLocal(modalFindResult),
+      duration: modalFindDuration
+    }));
+    setModalFindExpanded(false);
+    setModalFindResult(null);
+  };
+
+  // Reset modal find state when closing modal
   const closeModal = () => { 
     setShowModal(false); 
     setEditItem(null); 
     setFormData({});
+    // Reset modal find available state
+    setModalFindExpanded(false);
+    setModalFindStart('');
+    setModalFindDuration(30);
+    setModalFindResult(null);
   };
 
   const getEntityName = (type) => {
@@ -196,14 +333,18 @@ const App = () => {
         if (modalType === 'add') {
           await api.createContact(formData);
         } else {
-          await api.updateContact(editItem.id, formData);
+          const { id, ...contactPayload } = formData;
+          await api.updateContact(editItem.id, contactPayload);
         }
       } else if (activeTab === 'calendar') {
+        // Convert dateTimeLocal back to backend format
+        const { id, dateTimeLocal, ...eventFields } = formData;
         const eventData = {
-          ...formData,
-          users: typeof formData.users === 'string' 
-            ? formData.users.split(',').map(u => u.trim()).filter(Boolean)
-            : formData.users || []
+          ...eventFields,
+          date: dateHelpers.fromDateTimeLocal(dateTimeLocal),
+          users: typeof eventFields.users === 'string' 
+            ? eventFields.users.split(',').map(u => u.trim()).filter(Boolean)
+            : eventFields.users || []
         };
         if (modalType === 'add') {
           await api.createEvent(eventData);
@@ -211,17 +352,24 @@ const App = () => {
           await api.updateEvent(editItem.id, eventData);
         }
       } else if (activeTab === 'tasks') {
+        // Convert dueDateLocal back to backend format
+        const { id, desc, dueDate, dueDateLocal, ...otherFields } = formData;
+        const taskPayload = {
+          ...otherFields,
+          description: desc,
+          due_date: dateHelpers.fromDateLocal(dueDateLocal)
+        };
         if (modalType === 'add') {
-          await api.createTask(formData);
+          await api.createTask(taskPayload);
         } else {
-          await api.updateTask(editItem.id, formData);
+          await api.updateTask(editItem.id, taskPayload);
         }
       }
       closeModal();
       loadData();
     } catch (err) {
       console.error('Save failed:', err);
-      alert('Failed to save. Please try again.');
+      alert(err.message || 'Failed to save. Please try again.');
     }
   };
 
@@ -364,6 +512,20 @@ const App = () => {
                   className="pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 w-64"
                 />
               </div>
+
+              {activeTab === 'calendar' && (
+                <button
+                  onClick={() => setShowFindAvailable(!showFindAvailable)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors border ${
+                    showFindAvailable 
+                      ? 'bg-amber-100 text-amber-700 border-amber-300' 
+                      : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  <Zap size={18} />
+                  Find Available
+                </button>
+              )}
               <button
                 onClick={openAddModal}
                 className="flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition-colors"
@@ -440,6 +602,58 @@ const App = () => {
                 onChange={(e) => setFilters({...filters, dateFilter: e.target.value})}
                 className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 w-48"
               />
+            </div>
+          )}
+
+          {/* Find Next Available Open Slot */}
+          {activeTab === 'calendar' && showFindAvailable && (
+            <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+              <div className="flex items-center gap-2 mb-3">
+                <Zap size={18} className="text-amber-600" />
+                <h3 className="font-semibold text-amber-800">Find Next Available Time</h3>
+              </div>
+              <div className="flex items-end gap-4 flex-wrap">
+                <div>
+                  <label className="block text-sm text-slate-600 mb-1">Starting From</label>
+                  <input
+                    type="datetime-local"
+                    value={findAvailableStart}
+                    onChange={(e) => setFindAvailableStart(e.target.value)}
+                    className="border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-600 mb-1">Duration (min)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={findAvailableDuration}
+                    onChange={(e) => setFindAvailableDuration(parseInt(e.target.value) || 30)}
+                    className="border border-slate-300 rounded-lg px-3 py-2 w-24 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+                <button
+                  onClick={handleFindAvailable}
+                  disabled={findAvailableLoading}
+                  className="bg-amber-500 text-white px-4 py-2 rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50"
+                >
+                  {findAvailableLoading ? 'Searching...' : 'Search'}
+                </button>
+                {findAvailableResult && (
+                  <div className="flex items-center gap-3 ml-4 px-4 py-2 bg-white border border-emerald-300 rounded-lg">
+                    <div>
+                      <span className="text-sm text-slate-500">Available: </span>
+                      <span className="font-semibold text-emerald-700">{findAvailableResult}</span>
+                    </div>
+                    <button
+                      onClick={useFindAvailableResult}
+                      className="text-sm bg-emerald-500 text-white px-3 py-1 rounded-md hover:bg-emerald-600"
+                    >
+                      Use This Time
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </header>
@@ -608,34 +822,128 @@ const App = () => {
                   </div>
                 </>
               )}
-              {activeTab === 'calendar' && (
-                <>
-                  <input placeholder="Event Title" value={formData.title || ''} onChange={e => handleFormChange('title', e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <input placeholder="Date & Time (MM/DD/YYYY HH:MM)" value={formData.date || ''} onChange={e => handleFormChange('date', e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                    <input placeholder="Duration (minutes)" type="number" value={formData.duration || ''} onChange={e => handleFormChange('duration', parseInt(e.target.value) || 0)} className="border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500" />
+
+            {/* Calendar Modal Fields */}
+            {activeTab === 'calendar' && (
+              <>
+                <input placeholder="Event Title" value={formData.title || ''} onChange={e => handleFormChange('title', e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-slate-600 mb-1">Date & Time</label>
+                    <input 
+                      type="datetime-local" 
+                      value={formData.dateTimeLocal || ''} 
+                      onChange={e => handleFormChange('dateTimeLocal', e.target.value)} 
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500" 
+                    />
                   </div>
-                  <input placeholder="Attendees (comma-separated)" value={Array.isArray(formData.users) ? formData.users.join(', ') : formData.users || ''} onChange={e => handleFormChange('users', e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                </>
-              )}
-              {activeTab === 'tasks' && (
-                <>
-                  <input placeholder="Task Title" value={formData.title || ''} onChange={e => handleFormChange('title', e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                  <textarea placeholder="Description" rows={3} value={formData.desc || ''} onChange={e => handleFormChange('desc', e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <input placeholder="Due Date (MM/DD/YYYY)" value={formData.dueDate || ''} onChange={e => handleFormChange('dueDate', e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                    <select value={formData.state || 'Not Started'} onChange={e => handleFormChange('state', e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                  <div>
+                    <label className="block text-sm text-slate-600 mb-1">Duration (minutes)</label>
+                    <input 
+                      placeholder="Duration" 
+                      type="number" 
+                      min="1"
+                      value={formData.duration || ''} 
+                      onChange={e => handleFormChange('duration', parseInt(e.target.value) || 0)} 
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500" 
+                    />
+                  </div>
+                </div>
+
+                {/* Find Available Time - Inline Expanding */}
+                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <div 
+                    className="p-3 bg-slate-50 flex items-center justify-between cursor-pointer hover:bg-slate-100"
+                    onClick={() => setModalFindExpanded(!modalFindExpanded)}
+                  >
+                    <span className="text-sm text-slate-600">Need to find an open time slot?</span>
+                    <button className="flex items-center gap-1 text-sm text-amber-600 hover:text-amber-700 font-medium">
+                      <Zap size={14} />
+                      {modalFindExpanded ? 'Close' : 'Find Available Time'}
+                    </button>
+                  </div>
+                  {modalFindExpanded && (
+                    <div className="p-4 bg-amber-50 border-t border-amber-200 space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-slate-600 mb-1">Starting From</label>
+                          <input
+                            type="datetime-local"
+                            value={modalFindStart}
+                            onChange={(e) => setModalFindStart(e.target.value)}
+                            className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-slate-600 mb-1">Duration (min)</label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={modalFindDuration}
+                            onChange={(e) => setModalFindDuration(parseInt(e.target.value) || 30)}
+                            className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                          />
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleModalFindAvailable}
+                        disabled={modalFindLoading}
+                        className="w-full bg-amber-500 text-white px-3 py-2 rounded-lg hover:bg-amber-600 transition-colors text-sm font-medium disabled:opacity-50"
+                      >
+                        {modalFindLoading ? 'Searching...' : 'Search'}
+                      </button>
+                      {modalFindResult && (
+                        <div className="flex items-center justify-between p-2 bg-white border border-emerald-300 rounded-lg">
+                          <div>
+                            <span className="text-xs text-slate-500">Available: </span>
+                            <span className="font-semibold text-emerald-700">{modalFindResult}</span>
+                          </div>
+                          <button
+                            onClick={useModalFindResult}
+                            className="text-xs bg-emerald-500 text-white px-2 py-1 rounded hover:bg-emerald-600"
+                          >
+                            Use This Time
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <input placeholder="Attendees (comma-separated)" value={Array.isArray(formData.users) ? formData.users.join(', ') : formData.users || ''} onChange={e => handleFormChange('users', e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500" />
+              </>
+            )}
+
+            {/* Tasks Modal Fields */}
+            {activeTab === 'tasks' && (
+              <>
+                <input placeholder="Task Title" value={formData.title || ''} onChange={e => handleFormChange('title', e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                <textarea placeholder="Description" rows={3} value={formData.desc || ''} onChange={e => handleFormChange('desc', e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-slate-600 mb-1">Due Date</label>
+                    <input 
+                      type="date" 
+                      value={formData.dueDateLocal || ''} 
+                      onChange={e => handleFormChange('dueDateLocal', e.target.value)} 
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-slate-600 mb-1">State</label>
+                    <select value={formData.state || 'Not Started'} onChange={e => handleFormChange('state', e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500">
                       {TASK_STATES.map(state => (
                         <option key={state} value={state}>{state}</option>
                       ))}
                     </select>
                   </div>
-                  <div>
-                    <label className="block text-sm text-slate-600 mb-1">Progress: {formData.progress || 0}%</label>
-                    <input type="range" min="0" max="100" value={formData.progress || 0} onChange={e => handleFormChange('progress', parseInt(e.target.value))} className="w-full" />
-                  </div>
-                </>
-              )}
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-600 mb-1">Progress: {formData.progress || 0}%</label>
+                  <input type="range" min="0" max="100" value={formData.progress || 0} onChange={e => handleFormChange('progress', parseInt(e.target.value))} className="w-full" />
+                </div>
+              </>
+            )}
+
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl">
               <button onClick={closeModal} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors">

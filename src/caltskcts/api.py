@@ -141,7 +141,7 @@ def create_app():
         try:
             eid = _extract_id(msg)
         except ValueError as e:
-            return jsonify({"error": str(e)})
+            return jsonify({"error": str(e)}), 500
         return jsonify({"id": eid, "message": msg}), 201
 
     @app.route("/events/<int:eid>", methods=["PUT"])
@@ -155,7 +155,7 @@ def create_app():
         try:
             eid = _extract_id(msg)
         except ValueError as e:
-            return jsonify({"error": str(e)})
+            return jsonify({"error": str(e)}), 500
         return jsonify({"id": eid, "message": msg}), 200
 
     @app.route("/events/<int:eid>", methods=["DELETE"])
@@ -223,7 +223,7 @@ def create_app():
         try:
             tid = _extract_id(msg)
         except ValueError as e:
-            return jsonify({"error": str(e)})
+            return jsonify({"error": str(e)}), 500
         return jsonify({"id": tid}), 201
 
     @app.route("/tasks/<int:tid>", methods=["PUT"])
@@ -237,7 +237,7 @@ def create_app():
         try:
             id = _extract_id(msg)
         except ValueError as e:
-            return jsonify({"error": str(e)})
+            return jsonify({"error": str(e)}), 400
         return jsonify({"id": id, "message": msg}), 200
 
     @app.route("/tasks/<int:tid>", methods=["DELETE"])
@@ -250,7 +250,7 @@ def create_app():
         try:
             id = _extract_id(msg)
         except ValueError as e:
-            return jsonify({"error": str(e)})
+            return jsonify({"error": str(e)}), 400
         return jsonify({"id": id, "message": msg}), 200
 
     return app
