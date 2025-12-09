@@ -81,7 +81,7 @@ class EventModel(BaseModel):
     @field_validator("date", mode="before")
     @classmethod
     def parse_date_string(cls, v) -> datetime:
-        if isinstance(v, str):
+         if isinstance(v, str):
             try:
                 return datetime.strptime(v, "%m/%d/%Y %H:%M")
             except ValueError:

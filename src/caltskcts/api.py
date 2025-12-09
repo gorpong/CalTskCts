@@ -1,20 +1,20 @@
 import os
 import re
-from flask import Flask, jsonify, request, abort
+from flask import Flask, jsonify, request, abort, send_from_directory
 from caltskcts.contacts import Contacts
 from caltskcts.calendars import Calendar
 from caltskcts.tasks import Tasks
-from caltskcts.config import (
-    get_calendar_uri,
-    get_contacts_uri,
-    get_tasks_uri
-)
+from caltskcts.config import get_database_uri
 
 def create_app():
-    app = Flask(__name__)
+    # Get the directory where this file lives
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    static_dir = os.path.join(base_dir, 'static')
+    
+    app = Flask(__name__, static_folder=static_dir, static_url_path='')
 
-    # Check if STATE_URI is provided, otherwise use JSON files
-    state_uri = os.getenv("STATE_URI")
+    # read from env or fall back to JSON files
+    state_uri = get_database_uri()
 
     if state_uri:
         cal_uri = ctc_uri = tsk_uri = state_uri
@@ -38,6 +38,20 @@ def create_app():
         if not m:
             raise ValueError(f"Could not parse ID from message: {msg!r}")
         return int(m.group(1))
+
+    # ===== FRONTEND ROUTES =====
+
+    @app.route("/")
+    def serve_frontend():
+        """Serve the main frontend application"""
+        return send_from_directory(static_dir, 'index.html')
+
+    @app.route("/<path:path>")
+    def serve_static(path):
+        """Serve static files, fallback to index.html for SPA routing"""
+        if os.path.exists(os.path.join(static_dir, path)):
+            return send_from_directory(static_dir, path)
+        return send_from_directory(static_dir, 'index.html')
 
     # ===== CONTACTS ENDPOINTS =====
 
@@ -134,7 +148,7 @@ def create_app():
         try:
             eid = _extract_id(msg)
         except ValueError as e:
-            return jsonify({"error": str(e)})
+            return jsonify({"error": str(e)}), 500
         return jsonify({"id": eid, "message": msg}), 201
 
     @app.route("/events/<int:eid>", methods=["PUT"])
@@ -148,7 +162,7 @@ def create_app():
         try:
             eid = _extract_id(msg)
         except ValueError as e:
-            return jsonify({"error": str(e)})
+            return jsonify({"error": str(e)}), 500
         return jsonify({"id": eid, "message": msg}), 200
 
     @app.route("/events/<int:eid>", methods=["DELETE"])
@@ -216,7 +230,7 @@ def create_app():
         try:
             tid = _extract_id(msg)
         except ValueError as e:
-            return jsonify({"error": str(e)})
+            return jsonify({"error": str(e)}), 500
         return jsonify({"id": tid}), 201
 
     @app.route("/tasks/<int:tid>", methods=["PUT"])
@@ -230,7 +244,7 @@ def create_app():
         try:
             id = _extract_id(msg)
         except ValueError as e:
-            return jsonify({"error": str(e)})
+            return jsonify({"error": str(e)}), 400
         return jsonify({"id": id, "message": msg}), 200
 
     @app.route("/tasks/<int:tid>", methods=["DELETE"])
@@ -243,7 +257,7 @@ def create_app():
         try:
             id = _extract_id(msg)
         except ValueError as e:
-            return jsonify({"error": str(e)})
+            return jsonify({"error": str(e)}), 400
         return jsonify({"id": id, "message": msg}), 200
 
     return app
