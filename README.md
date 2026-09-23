@@ -6,8 +6,6 @@ This project provides an interactive command-line tool for managing list-based i
 
 ```text
 CalTskCts/
-├── data
-│   └── app.db
 ├── frontend
 │   ├── index.html
 │   ├── package.json
@@ -23,9 +21,6 @@ CalTskCts/
 ├── LICENSE
 ├── logging_config.json
 ├── logging_demo.py
-├── logs
-│   ├── caltskcts.log
-│   └── tasks.log
 ├── pytest.ini
 ├── README.md
 ├── requirements.txt
